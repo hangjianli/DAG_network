@@ -23,6 +23,8 @@ main <- function(){
   source("ordered_sims_new.R")
 
   
+  
+  
   # GES ---------------------------------------------------------------------
   args <- args_for_parameter()  
   # args$iid <- F
