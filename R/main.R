@@ -21,8 +21,8 @@ main <- function(){
   source("main_iteration_fast2.R")
   source("ordered_sims.R")
   source("ordered_sims_new.R")
-asdf
 
+  
   # GES ---------------------------------------------------------------------
   args <- args_for_parameter()  
   # args$iid <- F
