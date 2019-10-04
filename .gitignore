@@ -7,3 +7,8 @@ node_modules
 # Ignore large output files
 
 /output
+/.idea/dag_network.iml
+.idea/inspectionProfiles/
+.idea/libraries/
+.idea/modules.xml
+.idea/vcs.xml
