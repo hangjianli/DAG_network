@@ -5,7 +5,7 @@
 node_modules
 
 # Ignore large output files
-
+/R/.Rhistory
 /output
 /.idea/dag_network.iml
 .idea/inspectionProfiles/
