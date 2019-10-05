@@ -1,28 +1,33 @@
 import logging
 import random
 import numpy as np
+import pandas as pd
 
 logging.basicConfig(filename='utils.log', level=logging.DEBUG)
-
-
-# This function is probably unnecessary.
-def args_for_parameters(n, p, equal_var=True):
-    pass
-
 
 class ModelParams:
     def __init__(self,
                  n, p,
-                 df_name: str,
                  b_from_data_FLAG: bool = True,
                  df_theta_name: str = 'andes',
                  df_beta_name: str = 'andes',
                  btype: str = 'continuous',
+                 ncopy: int = 1,
                  equal_var_FLAG: bool = True):
         self.n = n
         self.p = p
         self.b_from_data_FLAG = b_from_data_FLAG
         self.equal_var_FLAG = equal_var_FLAG
+        self.df_beta_name = df_beta_name
+        self.btype = btype
+        self.ncopy = ncopy
+        self.df_theta_name = df_theta_name
+
+    def _construct_B_from_data(self):
+        df = pd.read_csv(f'../data/BNRepo/{self.df_beta_name}.csv', index_col=0)
+        pp = df.shape[0]
+        if self.ncopy > 1:
+            pass
 
     def gen_B(self):
         pass
