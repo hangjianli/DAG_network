@@ -7,8 +7,8 @@ node_modules
 # Ignore large output files
 /R/.Rhistory
 /output
-/.idea/dag_network.iml
-.idea/inspectionProfiles/
-.idea/libraries/
-.idea/modules.xml
-.idea/vcs.xml
+
+
+# Ignore pycharm files
+.idea/*
+.idea/misc.xml
