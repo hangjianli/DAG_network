@@ -1,14 +1,12 @@
 unordered_runsims <- function(start_pos = 1, repp = 1, args, estimands, thr, 
                               max.iter = 100, lambda.len = 10, div = 100){
-  # dir.create(path = args$setting)
-  setwd(paste0("~/Dropbox/research/code/",args$setting))
+  # setwd(paste0("~/Documents/research/code/",args$setting))
   today_date <- Sys.Date()
   
   # My methods --------------------------------------------------------------
   for (sim in start_pos:repp){
-    dir.create(path = paste0("~/Dropbox/research/code/", args$setting,"--", sim))
-    setwd(paste0("~/Dropbox/research/code/", args$setting,"--", sim))
-    
+    dir.create(path = paste0("~/Documents/research/dag_network/output/", args$setting,"--", sim))
+    setwd(paste0("~/Documents/research/dag_network/output/",args$setting,"--", sim))
     estimands <- generate_parameters(args, seed = sim*2, theta_name = estimands$theta_name, 
                                      bname = estimands$bname, btype = estimands$btype)
     saveRDS(estimands, file = "estimands.rds")
