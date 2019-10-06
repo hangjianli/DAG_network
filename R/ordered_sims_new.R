@@ -5,12 +5,11 @@ ordered_runsims_new <- function(start = 1, repp = 5, args, estimands,
   # In this version, when n > p, flipflop is not performed on lambda1 path but given the true support.
   #
   ####################################
-  setwd(paste0("~/Dropbox/research/code/",args$setting))
   today_date <- Sys.Date()
   
   for (sim in start:repp){
-    dir.create(path = paste0("~/Dropbox/research/code/",args$setting,"--", sim))
-    setwd(paste0("~/Dropbox/research/code/",args$setting,"--", sim))
+    dir.create(path = paste0("~/Documents/research/dag_network/output/",args$setting,"--", sim))
+    setwd(paste0("~/Documents/research/dag_network/output/",args$setting,"--", sim))
     # generate a new dag ------------------------------------------------------
     estimands <- generate_parameters(args, seed = sim*3, theta_name = estimands$theta_name, 
                                      bname = estimands$bname, btype = estimands$btype)
