@@ -163,7 +163,7 @@ gen.B.from.btrue <- function(p, B_true, seed = 394, btype = NULL, lower.thresh =
 constrB_from_BNrepo <- function(name = "andes", type = "discrete", ncopy = 1){
   # Given name and ncopy, generate adjacency matrix B_true
 
-  load(paste0("~/Dropbox/research/code/BNRepo/", name, ".rda"))
+  load(paste0("~/Documents/research/dag_network/BNRepo/", name, ".rda"))
   # load("~/Dropbox/research/code/BNRepo/arth150.rda")
   # load(paste0("~/../Dropbox/research/code/BNRepo/", name, ".rda")) 
   ordering <- node.ordering(bn)
