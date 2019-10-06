@@ -3,6 +3,8 @@ import random
 import numpy as np
 import pandas as pd
 
+
+
 logging.basicConfig(filename='utils.log', level=logging.DEBUG)
 
 class ModelParams:
