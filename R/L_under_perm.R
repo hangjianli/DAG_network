@@ -1,4 +1,4 @@
-setwd("~/OneDrive/Documents/research/code")
+setwd("~/Documents/research/dag_network/R")
 args <- args_for_parameter()
 dir.create(path = args$setting)
 setwd(args$setting)
