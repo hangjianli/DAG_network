@@ -25,10 +25,9 @@ source("ordered_sims_new.R")
 
 # GES ---------------------------------------------------------------------
 args <- args_for_parameter()  
-# args$iid <- F
-dir.create(path = args$setting)
-setwd(args$setting)
-saveRDS(args, file = "args.rds")
+dir.create(path = paste0('~/Documents/research/dag_network/output/', args$setting))
+saveRDS(args, file = paste0('~/Documents/research/dag_network/output/', args$setting, "/args.rds"))
+
 estimands <- generate_parameters(args = args, seed = 222, bname = "ecoli70",
                                  btype = "continuous", theta_name = NULL)
                                  # theta_name = "USairport500",
@@ -38,7 +37,7 @@ image(as(estimands$b, class(estimands$theta)))
 estimands$sig <- diag(args$n)
 estimands$theta <- diag(args$n)
 # image(as(bestX$theta_est, class(estimands$theta)))
-saveRDS(estimands, file = "estimands.rds")
+saveRDS(estimands, file = paste0('~/Documents/research/dag_network/output/', args$setting, "/estimands.rds"))
 # run sims ----------------------------------------------------------------
 ordered_runsims_new(start = 2, 2, args, estimands, max.iter = 100, lam_div = 40)
 
