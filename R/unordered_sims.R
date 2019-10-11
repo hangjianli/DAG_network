@@ -24,8 +24,13 @@ unordered_runsims <- function(start_pos = 1, repp = 1, args, estimands, thr,
     adjmat_trueCPDAG <- bnstruct::dag.to.cpdag(1*(estimands$b != 0)) 
     saveRDS(adjmat_trueCPDAG, "adjmat_trueCPDAG.rds")
     set.seed(100)
-    fgsX <- fges(df = X, penaltydiscount = 2.0, maxDegree = -1,
-                 faithfulnessAssumed = TRUE, verbose = F)
+    # fgsX <- fges(df = X, penaltydiscount = 2.0, maxDegree = -1,
+    #              faithfulnessAssumed = TRUE, verbose = F)
+    
+    fgsX <- tetradrunner(algoId = 'fges',df = X, scoreId = 'sem-bic',
+                                 dataType = 'continuous',faithfulnessAssumed=TRUE,
+                                 maxDegree=-1,verbose=TRUE)
+    
     adjmat_fgesCPDAG_X <- get_adjmat_from_fges(fgsX$edges, p = p, varnames = dimnames(X)[[2]])
     shdX_ges <- unlist(compute_SHD_detail(adjmat_fgesCPDAG_X, adjmat_trueCPDAG, estimands$s0))
     saveRDS(shdX_ges, paste0("X-",sim,"-shdX_ges.rds"))
