@@ -1,4 +1,7 @@
-
+X_ <- sim_X(vers = sim, p = estimands$realp,
+            args = args, omg.sq = estimands$omg.sq,
+            sig = estimands$sig, b = estimands$b)
+X <- X_$X
 
 n <- dim(X)[1]
 p <- dim(X)[2]
@@ -18,11 +21,10 @@ theta_diff_ <- phi_diff_ <- 1
 
 # developer reference --------------------------
 theta_diff <- phi_diff <- rep(0, max.iter - 1)
-max.iter <- 50
-while((iter <= max.iter) &&  (theta_diff_ > 1e-4 || rho_diff_ > 1e-4 || phi_diff_ > 1e-4)){
+max.iter <- 70
+while((iter <= max.iter) &&  (theta_diff_ > 1e-4 || phi_diff_ > 1e-4)){
   choles <- chol(theta_est) #upper triangular
   phi.est <- matrix(0,p,p) 
-  set.seed(vers)
   first <- glmnet(x = as.matrix(choles%*%cbind(0,X[,1])),
                   y = as.matrix(choles%*%X[,2]),
                   alpha = 1,
@@ -61,14 +63,12 @@ while((iter <= max.iter) &&  (theta_diff_ > 1e-4 || rho_diff_ > 1e-4 || phi_diff
     cat("[INFO] Previous likelihood: ", total.likeli[iter - 1], "\n")
     cat("[INFO] This is iteration ", iter, "\n")
     phi.est <- phi_old
-    rho.est <- rho_old
     cat("[INFO] Lasso step is not decreasing. Algorithm converges. \n")
     warning(paste0("Lasso step is not decreasing at iter: ", iter, " Algorithm converges. \n"))
     break
   }
   
   #estimate theta--------------------------------------
-  set.seed(vers + 2)
   sig.blocks <- vector(mode = "list", length = num_blocks)
   for(i in 1:num_blocks){
     zeros = estimands$zeropos_list[[i]]
@@ -79,7 +79,7 @@ while((iter <= max.iter) &&  (theta_diff_ > 1e-4 || rho_diff_ > 1e-4 || phi_diff
                        thr = 1.0e-4,
                        rho = lambda2/p,
                        zero = zeros,
-                       penalize.diagonal = T)
+                       penalize.diagonal = F)
     sig.blocks[[i]] <- temp_sig$w
   }
   sig.est <- as.matrix(do.call(bdiag, sig.blocks))
@@ -89,8 +89,7 @@ while((iter <= max.iter) &&  (theta_diff_ > 1e-4 || rho_diff_ > 1e-4 || phi_diff
   # total likelihood-----------------------------------
   post_glasso_nll <- -p*log(det(theta_est)) + sum(diag(S%*%theta_est)) +
     sum(abs(theta_est))*lambda2 + lambda*sum(abs(phi.est)) 
-  missingpart <- sum(sweep(abs(phi.est),2, lambda, "*"))
-  
+
   total.likeli[iter] <- post_glasso_nll
   
   phi_diff_ <- norm(as.matrix(phi_old - phi.est), "f") / sqrt(p*(p-1)/2)
@@ -100,13 +99,16 @@ while((iter <= max.iter) &&  (theta_diff_ > 1e-4 || rho_diff_ > 1e-4 || phi_diff
   phi_diff[iter] <- phi_diff_
   theta_diff[iter] <- theta_diff_
   
-  if(iter %% 10 == 0){
-    cat("Iter: ", iter, "\n",
-        "nll: ", total.likeli[iter], "\n",
-        "Diff (within):  ", total.likeli[iter] - likeli2, "\n",
-        "Diff (btw): ", total.likeli[iter] - total.likeli[iter - 1] , "\n",
-        "---------------------------------------------","\n")
-  }
+  cat("Iter: ", iter, "\n",
+      "nll: ", total.likeli[iter], "\n",
+      "Diff (within):  ", total.likeli[iter] - likeli2, "\n",
+      "Diff (btw): ", total.likeli[iter] - total.likeli[iter - 1] , "\n",
+      "---------------------------------------------","\n")
   iter <- iter + 1
 
 }
+
+
+plot(total.likeli[total.likeli!=0], type = 'b', lwd = 3, pch = 16, col = 'red')
+
+all(diff(total.likeli[total.likeli!=0]) < 0)
