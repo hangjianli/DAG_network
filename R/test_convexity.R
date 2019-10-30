@@ -3,6 +3,9 @@ X_ <- sim_X(vers = sim, p = estimands$realp,
             sig = estimands$sig, b = estimands$b)
 X <- X_$X
 
+XX <- X
+lambda.path <- get_lam_path(p, XX, rep(1,p), 10, 100)
+lambda <- lambda.path[2]
 n <- dim(X)[1]
 p <- dim(X)[2]
 
@@ -10,10 +13,11 @@ num_blocks <- ceiling(args$n/args$block_size)
 block_size <- args$block_size
 zeropos_list <- estimands$zeropos_list
 
-
 iter <- 1
+set.seed(20)
+A <- matrix(runif(n^2)*2-1, ncol=n) 
+theta_est <- t(A) %*% A
 
-theta_est <- diag(n)
 total.likeli <- rep(0, max.iter)
 theta_old <- matrix(0, n, n)
 phi_old <- matrix(0,p,p)
@@ -21,8 +25,8 @@ theta_diff_ <- phi_diff_ <- 1
 
 # developer reference --------------------------
 theta_diff <- phi_diff <- rep(0, max.iter - 1)
-max.iter <- 70
-while((iter <= max.iter) &&  (theta_diff_ > 1e-4 || phi_diff_ > 1e-4)){
+max.iter <- 5000
+while((iter <= max.iter) &&  (theta_diff_ > 1e-6 || phi_diff_ > 1e-6)){
   choles <- chol(theta_est) #upper triangular
   phi.est <- matrix(0,p,p) 
   first <- glmnet(x = as.matrix(choles%*%cbind(0,X[,1])),
@@ -87,10 +91,16 @@ while((iter <= max.iter) &&  (theta_diff_ > 1e-4 || phi_diff_ > 1e-4)){
   
   
   # total likelihood-----------------------------------
-  post_glasso_nll <- -p*log(det(theta_est)) + sum(diag(S%*%theta_est)) +
-    sum(abs(theta_est))*lambda2 + lambda*sum(abs(phi.est)) 
+  post_glasso_nll <- calculate_total_likelihood_reparam(X = X, rho.est = rep(1,p),
+                                                        phi.est = phi.est, theta.est = theta_est,
+                                                        lam1 = lambda, lam2 = lambda2)
+    
+  test <- -p*log(det(theta_est)) + sum(diag(S%*%theta_est)) +
+    sum(abs(theta_est))*lambda2 + lambda*sum(abs(phi.est))
+  
+  assertthat::are_equal(test, post_glasso_nll$result)
 
-  total.likeli[iter] <- post_glasso_nll
+  total.likeli[iter] <- post_glasso_nll$result
   
   phi_diff_ <- norm(as.matrix(phi_old - phi.est), "f") / sqrt(p*(p-1)/2)
   phi_old <- phi.est
@@ -98,17 +108,19 @@ while((iter <= max.iter) &&  (theta_diff_ > 1e-4 || phi_diff_ > 1e-4)){
   theta_old <- theta_est
   phi_diff[iter] <- phi_diff_
   theta_diff[iter] <- theta_diff_
+  if(iter %% 50 == 0){
+    cat("Iter: ", iter, "\n",
+        "nll: ", total.likeli[iter], "\n",
+        "Diff (within):  ", total.likeli[iter] - likeli2, "\n",
+        "Diff (btw): ", total.likeli[iter] - total.likeli[iter - 1] , "\n",
+        "---------------------------------------------","\n")  
+  }
   
-  cat("Iter: ", iter, "\n",
-      "nll: ", total.likeli[iter], "\n",
-      "Diff (within):  ", total.likeli[iter] - likeli2, "\n",
-      "Diff (btw): ", total.likeli[iter] - total.likeli[iter - 1] , "\n",
-      "---------------------------------------------","\n")
   iter <- iter + 1
 
 }
 
 
-plot(total.likeli[total.likeli!=0], type = 'b', lwd = 3, pch = 16, col = 'red')
+plot(total.likeli[total.likeli!=0], type = 'b', lwd = 1, pch = 16, col = 'red')
 
 all(diff(total.likeli[total.likeli!=0]) < 0)
