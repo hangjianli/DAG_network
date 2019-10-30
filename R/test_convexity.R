@@ -89,7 +89,6 @@ while((iter <= max.iter) &&  (theta_diff_ > 1e-6 || phi_diff_ > 1e-6)){
   sig.est <- as.matrix(do.call(bdiag, sig.blocks))
   theta_est <- solve(sig.est)
   
-  
   # total likelihood-----------------------------------
   post_glasso_nll <- calculate_total_likelihood_reparam(X = X, rho.est = rep(1,p),
                                                         phi.est = phi.est, theta.est = theta_est,
