@@ -33,7 +33,7 @@ sim_X <- function(vers, p, args, omg.sq, sig, b){
   X[,2] <- X[,1]*b[1,2] + eps_mat[,2]
     
   for(i in 3:p) {
-    eps_mat[, i] <- mvrnorm(1, mu = rep(0, args$n), Sigma = omg.sq[i]*sig)
+    # eps_mat[, i] <- mvrnorm(1, mu = rep(0, args$n), Sigma = omg.sq[i]*sig)
     X[,i] <- rowSums(sweep(X[,1:i-1], MARGIN = 2, b[1:i-1,i], "*")) + eps_mat[,i]
     if (i %% 50 == 0)
       cat("Getting ", i, "th column of X. \n" )
@@ -43,7 +43,7 @@ sim_X <- function(vers, p, args, omg.sq, sig, b){
   # L <- chol(psi_inv)
   # X <- X%*%t(L)
   # X <- eps_mat%*%solve(diag(p) - b)
-  X <- sweep(X, 2, STATS = apply(X,2,sd), FUN = "/")
+  # X <- sweep(X, 2, STATS = apply(X,2,sd), FUN = "/")
   dimnames(X) <- list(NULL, as.character(1:p))
   return(list(X = X, eps_mat = eps_mat))
 }
