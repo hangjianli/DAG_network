@@ -28,7 +28,7 @@ args <- args_for_parameter()
 dir.create(path = paste0('~/Documents/research/dag_network/output/', args$setting))
 saveRDS(args, file = paste0('~/Documents/research/dag_network/output/', args$setting, "/args.rds"))
 
-estimands <- generate_parameters(args = args, seed = 222, bname = "ecoli70",
+estimands <- generate_parameters(args = args, seed = 1, bname = "ecoli70",
                                  btype = "continuous", theta_name = NULL)
                                  # theta_name = "USairport500",
                                  # bname = "pathfinder", btype = "discrete")
