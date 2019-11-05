@@ -2,7 +2,7 @@ X_ <- sim_X(vers = 1, p = estimands$realp,
             args = args, omg.sq = estimands$omg.sq,
             sig = estimands$sig, b = estimands$b)
 X <- X_$X
-lambda2 <- 0.0001
+lambda2 <- 0.01
 L <- diag(n)
 L <- chol(estimands$theta)
 image(as(cov(t(as.matrix(L%*%X))), "dgCMatrix"))
@@ -18,23 +18,20 @@ num_blocks <- ceiling(args$n/args$block_size)
 block_size <- args$block_size
 zeropos_list <- estimands$zeropos_list
 
-
-newX <- sparsebnData(as.matrix(LX), type = "continuous")
-spasebn_noniid <- estimate.dag(newX)
-solution2_idx <- select.parameter(spasebn_noniid, newX)
-solution2 <- select(spasebn_noniid, index = solution2_idx)
-sparsebn_origin <- get.adjacency.matrix(solution2)
-shd2 <- compute_SHD_detail(sparsebn_origin, adjmat_trueCPDAG, estimands$s0)
-
-LX <- L%*%X
-
+# 
+# newX <- sparsebnData(as.matrix(LX), type = "continuous")
+# spasebn_noniid <- estimate.dag(newX)
+# solution2_idx <- select.parameter(spasebn_noniid, newX)
+# solution2 <- select(spasebn_noniid, index = solution2_idx)
+# sparsebn_origin <- get.adjacency.matrix(solution2)
+# shd2 <- compute_SHD_detail(sparsebn_origin, adjmat_trueCPDAG, estimands$s0)
 
 iter <- 1
 set.seed(11)
-A <- matrix(runif(n^2)*2-1, ncol=n) 
-estimands$sig <- cov2cor(t(A) %*% A)
-estimands$theta <- solve(estimands$sig)
-theta_est <- cov2cor(t(A) %*% A)
+# A <- matrix(runif(n^2)*2-1, ncol=n) 
+# estimands$sig <- cov2cor(t(A) %*% A)
+# estimands$theta <- solve(estimands$sig)
+# theta_est <- cov2cor(t(A) %*% A)
 theta_est <- estimands$theta
 
 max.iter <- 5000
@@ -45,12 +42,7 @@ theta_diff_ <- phi_diff_ <- 1
 
 # developer reference --------------------------
 theta_diff <- phi_diff <- rep(0, max.iter - 1)
-
-
-Xnew <- t(choles%*%X)
-
-
-
+estimands$theta[1:10,1:10]
 
 while((iter <= max.iter) &&  (theta_diff_ > 1e-6 || phi_diff_ > 1e-6)){
   choles <- chol(theta_est)
