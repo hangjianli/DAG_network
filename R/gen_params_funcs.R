@@ -63,7 +63,7 @@ generate_parameters <- function(args, seed = 10, bname = NULL, btype = NULL,
                                B_true = btrue$B_true, lower.thresh = 0.1, b.mag = 1)
   }else{
     cat("B was generated from simulation.\n")
-    b.temp <- gen.B(p = args$p, seed = seed)
+    b.temp <- gen.B(b.mag = 1, p = args$p, seed = seed)
     pp <- b.temp$pp
   }
   if(args$thetachoice == "y"){
