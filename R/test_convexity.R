@@ -10,7 +10,7 @@ image(as(estimands$sig, 'dgCMatrix'))
 
 XX <- X
 lambda.path <- get_lam_path(estimands$realp, XX, rep(1,estimands$realp), 10, 100)
-lambda <- lambda.path[5]
+lambda <- lambda.path[7]
 n <- dim(X)[1]
 p <- dim(X)[2]
 
@@ -28,52 +28,76 @@ zeropos_list <- estimands$zeropos_list
 
 iter <- 1
 set.seed(11)
-# A <- matrix(runif(n^2)*2-1, ncol=n) 
+A <- matrix(runif(n^2)*2-1, ncol=n)
 # estimands$sig <- cov2cor(t(A) %*% A)
 # estimands$theta <- solve(estimands$sig)
-# theta_est <- cov2cor(t(A) %*% A)
+theta_est <- solve(cov2cor(t(A) %*% A))
 theta_est <- estimands$theta
+rho.est <- rep(1,p)
+
+
 
 max.iter <- 5000
 total.likeli <- rep(0, max.iter)
+
 theta_old <- matrix(0, n, n)
 phi_old <- matrix(0,p,p)
-theta_diff_ <- phi_diff_ <- 1
+rho_old <- rep(0, p)
+
+theta_diff_ <- phi_diff_ <- rho_diff_ <- 1
 
 # developer reference --------------------------
-theta_diff <- phi_diff <- rep(0, max.iter - 1)
+theta_diff <- phi_diff <- rho_diff <- rep(0, max.iter - 1)
 estimands$theta[1:10,1:10]
 
-while((iter <= max.iter) &&  (theta_diff_ > 1e-6 || phi_diff_ > 1e-6)){
+while((iter <= max.iter) &&  (theta_diff_ > 1e-6 || phi_diff_ > 1e-6 || rho_diff_ > 1e-4 )){
   choles <- chol(theta_est)
   phi.est <- matrix(0,p,p) 
+  # rho.est[1] <- sqrt(n)/norm(as.matrix(choles%*%X[,1]),type = "f")
   first <- glmnet(x = as.matrix(choles%*%cbind(0,X[,1])),
-                  y = as.matrix(choles%*%X[,2]),
+                  y = as.matrix(choles%*%X[,2]*rho.est[2]),
                   alpha = 1,
                   intercept = F,
                   lambda = lambda/(2*n),
                   standardize = F,
                   family = "gaussian",
-                  thresh = 1e-10)
+                  thresh = 1e-8)
   phi.est[,2] <- c(as.numeric(first$beta)[-1], rep(0, p - 1))
   #update phi--------------------------------------
   phi.temp <- foreach(i=2:(p-1),.combine = "cbind",.packages = "glmnet") %dopar% {
     lars.temp <- glmnet(x = as.matrix(choles)%*%X[,1:i],
-                        y = as.matrix(choles)%*%X[,i+1],
+                        y = as.matrix(choles)%*%X[,i+1]*rho.est[i+1],
                         alpha = 1,
                         intercept = F,
                         standardize = F,
                         lambda = lambda/(2*n),
                         family = "gaussian",
-                        thresh = 1e-10)
+                        thresh = 1e-7)
     c(as.numeric(lars.temp$beta), rep(0, p - i))
   }
   phi.est[,3:p] <- phi.temp
+  
+
+# update rho --------------------------------------------------------------
+
+  rho.temp <- foreach(i=2:p,.combine = "c") %dopar% {
+    b_ <- -t(X[,i])%*%theta_est%*%X%*%phi.est[,i] %>% as.numeric()
+    a_ <- t(X[,i])%*%theta_est%*%X[,i] %>% as.numeric()
+    c_ <- -n
+    (-b_ + sqrt(b_^2 - 4*a_*c_))/(2*a_)
+  }
+  rho.est[2:p] <- rho.temp
+  
   # compute sample covariance-------------------------
-  S <- (X - X%*%phi.est)%*%t(X - X%*%phi.est)
+  # S <- (X - X%*%phi.est)%*%t(X - X%*%phi.est)
+  # S.scale <- S/p
+  
+  test.temp <- X%*%(diag(rho.est) - phi.est)
+  test.res <- apply(test.temp,2,tcrossprod)
+  S <- matrix(rowSums(test.res),n,n)
   S.scale <- S/p
   # compute likelihood ------------------------------------------------------
-  likeli2 <- calculate_total_likelihood_reparam(X = X, rho.est = rep(1,p), phi.est = phi.est,
+  likeli2 <- calculate_total_likelihood_reparam(X = X, rho.est = rho.est, phi.est = phi.est,
                                                 theta.est = theta_est, lam1 = lambda, 
                                                 lam2 = lambda2)$result
   
@@ -88,29 +112,30 @@ while((iter <= max.iter) &&  (theta_diff_ > 1e-6 || phi_diff_ > 1e-6)){
   # }
   
   #estimate theta--------------------------------------
-  sig.blocks <- vector(mode = "list", length = num_blocks)
-  for(i in 1:num_blocks){
-    zeros = estimands$zeropos_list[[i]]
-    if(dim(zeros)[1] == 0)
-      zeros = NULL
-    temp_sig <- glasso(s = S.scale[(1+block_size*(i-1)) : min(block_size*i,n), 
-                                   (1+block_size*(i-1)) : min(block_size*i,n)],
-                       thr = 1.0e-15,
-                       rho = lambda2/p,
-                       zero = zeros,
-                       penalize.diagonal = F)
-    sig.blocks[[i]] <- temp_sig$w
-  }
-  sig.est <- as.matrix(do.call(bdiag, sig.blocks))
-  theta_est <- solve(sig.est)
+  # sig.blocks <- vector(mode = "list", length = num_blocks)
+  # for(i in 1:num_blocks){
+  #   zeros = estimands$zeropos_list[[i]]
+  #   if(dim(zeros)[1] == 0)
+  #     zeros = NULL
+  #   temp_sig <- glasso(s = S.scale[(1+block_size*(i-1)) : min(block_size*i,n), 
+  #                                  (1+block_size*(i-1)) : min(block_size*i,n)],
+  #                      thr = 1.0e-8,
+  #                      rho = lambda2/p,
+  #                      zero = zeros,
+  #                      penalize.diagonal = F)
+  #   sig.blocks[[i]] <- temp_sig$w
+  # }
+  # sig.est <- as.matrix(do.call(bdiag, sig.blocks))
+  # # sig.est[1,1] = 100
+  # theta_est <- solve(sig.est)
   
   # total likelihood-----------------------------------
-  post_glasso_nll <- calculate_total_likelihood_reparam(X = X, rho.est = rep(1,p),
+  post_glasso_nll <- calculate_total_likelihood_reparam(X = X, rho.est = rho.est,
                                                         phi.est = phi.est, theta.est = theta_est,
                                                         lam1 = lambda, lam2 = lambda2)
     
   test <- -p*log(det(theta_est)) + sum(diag(S%*%theta_est)) +
-    sum(abs(theta_est))*lambda2 + lambda*sum(abs(phi.est))
+    sum(abs(theta_est))*lambda2 + lambda*sum(abs(phi.est)) - 2*n*sum(log(rho.est))
   
   assertthat::are_equal(test, post_glasso_nll$result)
 
@@ -120,9 +145,15 @@ while((iter <= max.iter) &&  (theta_diff_ > 1e-6 || phi_diff_ > 1e-6)){
   phi_old <- phi.est
   theta_diff_ <- norm((theta_old - theta_est), "f") / n
   theta_old <- theta_est
+  rho_diff_ <- norm(as.matrix(rho_old - rho.est), "f") / sqrt(p)
+  rho_old <- rho.est
+  
   phi_diff[iter] <- phi_diff_
   theta_diff[iter] <- theta_diff_
-  if(iter %% 50 == 0){
+  rho_diff[iter] <- rho_diff_
+  
+  b_est <- sweep(phi.est,2,rho.est,'/') 
+  if(iter %% 5 == 0){
     cat("Iter: ", iter, "\n",
         "nll: ", total.likeli[iter], "\n",
         "Diff (within):  ", total.likeli[iter] - likeli2, "\n",
