@@ -7,7 +7,9 @@ node_modules
 # Ignore large output files
 /R/.Rhistory
 /output
-
+/doc
+/data
+/figs
 
 # Ignore pycharm files
 .idea/*
