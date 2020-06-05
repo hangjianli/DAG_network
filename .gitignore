@@ -10,7 +10,11 @@ node_modules
 /doc
 /data
 /figs
+/JSM_presentation
 
 # Ignore pycharm files
 .idea/*
 .idea/misc.xml
+.Rproj.user
+
+/python
