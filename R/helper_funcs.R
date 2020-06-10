@@ -20,20 +20,25 @@ hardthreshold <- function(A, thresh){
 #            lam1*sum(abs(phi)) + lam.e*norm(phi,"f")^2 + lam2*sum(abs(theta)))
 # }
 
-sim_X <- function(vers, p, args, omg.sq, sig, b){
-  # simulate X from parameters ----------------------------------------------
+sim_X <- function(vers, p, n, omg.sq, sig, b){
+  #' simulate X from network DAG given its parameters
+  #' 
+  #' \code{sim_X} returns X and E matrices generated from the network DAG
+  #' 
+  #' @param 
+  #' 
   set.seed(vers)
-  eps_mat <- matrix(0, args$n, p)
+  eps_mat <- matrix(0, n, p)
   eps_mat[,1] <- mvrnorm(1, mu = rep(0, args$n), Sigma = omg.sq[1]*sig)
   eps_mat[,2] <- mvrnorm(1, mu = rep(0, args$n), Sigma = omg.sq[2]*sig)
 
-  X <- matrix(0, args$n, p)
+  X <- matrix(0, n, p)
   
   X[,1] <- eps_mat[,1]
   X[,2] <- X[,1]*b[1,2] + eps_mat[,2]
     
   for(i in 3:p) {
-    eps_mat[, i] <- mvrnorm(1, mu = rep(0, args$n), Sigma = omg.sq[i]*sig)
+    eps_mat[, i] <- mvrnorm(1, mu = rep(0, n), Sigma = omg.sq[i]*sig)
     X[,i] <- rowSums(sweep(X[,1:i-1], MARGIN = 2, b[1:i-1,i], "*")) + eps_mat[,i]
     if (i %% 50 == 0)
       cat("Getting ", i, "th column of X. \n" )
@@ -48,17 +53,17 @@ sim_X <- function(vers, p, args, omg.sq, sig, b){
   return(list(X = X, eps_mat = eps_mat))
 }
 
-sim_X_old <- function(vers, p, args, omg.sq, sig, b){
-  # simulate X from parameters ----------------------------------------------
-  set.seed(vers)
-  eps_mat <- matrix(0, args$n, p)
-  for(i in 1:p) {
-    eps_mat[, i] <- mvrnorm(1, mu = rep(0, args$n), Sigma = omg.sq[i]*sig)
-    cat("Getting ", i, "th column of X. \n" )
-  }
-  X <- eps_mat%*%solve(diag(p) - b)
-  return(list(X = X, eps_mat = eps_mat))
-}
+# sim_X_old <- function(vers, p, args, omg.sq, sig, b){
+#   # simulate X from parameters ----------------------------------------------
+#   set.seed(vers)
+#   eps_mat <- matrix(0, args$n, p)
+#   for(i in 1:p) {
+#     eps_mat[, i] <- mvrnorm(1, mu = rep(0, args$n), Sigma = omg.sq[i]*sig)
+#     cat("Getting ", i, "th column of X. \n" )
+#   }
+#   X <- eps_mat%*%solve(diag(p) - b)
+#   return(list(X = X, eps_mat = eps_mat))
+# }
 
 
 
