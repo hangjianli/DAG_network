@@ -1,9 +1,9 @@
 rm(list = ls())
-setwd("~/Documents/research/dag_network/R")
-source("loadpackages.R")
+# setwd("~/Documents/research/dag_network/R")
+source("R/loadpackages.R")
 # helper functions --------------------------------------------------------
-source("helper_funcs.R")
-source("gen_params_funcs.R")
+source("R/helper_funcs.R")
+source("R/data_generation/gen_params_funcs.R")
 source("summary_func.R")
 # models function ------------------------------------------------------------------
 source("lassoIdentTheta_func.R")
@@ -23,9 +23,16 @@ source("ordered_sims_new.R")
 
 
 
+p = 10
+n = 5
+omgTrue <- gen.omg(p = p, iid = T)
+bTrue <- genB(p = p, nEdges = 1.5*p)
+sigTrue <- genTheta
+
+
 # GES ---------------------------------------------------------------------
 args <- args_for_parameter()  
-dir.create(path = paste0('~/Documents/research/dag_network/output/', args$setting))
+dir.create(path = paste0('output/', args$setting))
 saveRDS(args, file = paste0('~/Documents/research/dag_network/output/', args$setting, "/args.rds"))
 
 estimands <- generate_parameters(args = args, seed = 1, bname = "ecoli70",

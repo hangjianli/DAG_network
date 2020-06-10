@@ -41,6 +41,9 @@ library(rJava)
 # library(devtools)
 # install_github("bd2kccd/r-causal")
 library(rcausal)
+
+
+
 if (!require("clusterGeneration")) install.packages("clusterGeneration")
 library(clusterGeneration)
 options(xtable.floating = FALSE)

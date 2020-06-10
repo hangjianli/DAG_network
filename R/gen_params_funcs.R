@@ -43,9 +43,18 @@ args_for_parameter <- function(){
               setting = setting))
 }
 
+#' Load the settings for generating DAG parameters
+#'  
+load_settings <- function(){
+  
+}
 
-generate_parameters <- function(args, seed = 10, bname = NULL, btype = NULL, 
-                                theta_name = NULL){
+generate_parameters <- function(args, 
+                                seed = 10, 
+                                bname = NULL, 
+                                btype = NULL, 
+                                theta_name = NULL
+){
   if(args$bchoice == "y") {
     cat("B was generated from data. \n")
     if(is.null(bname))
@@ -96,7 +105,7 @@ generate_parameters <- function(args, seed = 10, bname = NULL, btype = NULL,
   
   return(list(omg = omg, omg.sq = omg.sq, 
               b = b, s0 = s0,
-              # zerosb = zerosb, 
+              zerosb = zerosb,
               theta = theta, sig = sig, 
               zeropos = zeropos, 
               zeropos_list = zeropos_list,
