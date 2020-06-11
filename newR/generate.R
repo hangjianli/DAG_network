@@ -1,5 +1,6 @@
 library(Matrix)
 library(corpcor)
+library(clusterGeneration)
 # args_for_parameter <- function(){
 #   # Input parameters from terminal ------------------------------------------
 #   n <- readline(prompt = "Choose n >> ")
@@ -231,9 +232,9 @@ constrB_from_BNrepo <- function(name = "andes", type = "discrete", ncopy = 1){
 
 
 
-# generate Sigma (better way) ---------------------------------------
+# generate Theta/Sigma ---------------------------------------
 gen.theta.from.data <- function(name_theta, block_size = 20, n = 500, seed=5){
-  mydata <- read.table(paste0("~/Dropbox/research/code/real_Sigma/", name_theta, ".txt"), quote="\"", comment.char="")
+  mydata <- read.table(paste0("data/real_Sigma/", name_theta, ".txt"), quote="\"", comment.char="")
   adjmat <- get.adjacency(graph = graph_from_edgelist(el = as.matrix(mydata[,1:2]), directed = F))
   adjmat[adjmat == 2] <- 1
   diag(adjmat) <- 1
@@ -310,27 +311,27 @@ genExpDecay <- function(n,
                         seed=1){
   #' generate exponential decay precision matrix
   
-    blocks <- vector(mode = "list") 
-    zeropos <- vector(mode = "list")
-    set.seed(seed)
-    for(i in 1:nBlocks){
-      indices <- as.matrix(expand.grid(1:bSizes[i], 1:bSizes[i]))
-      blocks[[i]] <- diag(bSizes[i])
-      for(j in 1:nrow(indices)){
-        blocks[[i]][indices[j,1], indices[j,2]] <- 0.7^abs(diff(indices[j,]))
-      } 
-      sig <- cov2cor(solve(blocks[[i]]))
-      blocks[[i]] <- round(solve(sig),5)
-      
-      stopifnot(is.positive.definite(blocks[[i]])) 
-      
-      zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
-    }
-    theta <- do.call(bdiag, blocks)
-    theta[abs(theta) < 1e-3] = 0
-    sig <- round(solve(theta),5)
+  blocks <- vector(mode = "list") 
+  zeropos <- vector(mode = "list")
+  set.seed(seed)
+  for(i in 1:nBlocks){
+    indices <- as.matrix(expand.grid(1:bSizes[i], 1:bSizes[i]))
+    blocks[[i]] <- diag(bSizes[i])
+    for(j in 1:nrow(indices)){
+      blocks[[i]][indices[j,1], indices[j,2]] <- 0.7^abs(diff(indices[j,]))
+    } 
+    sig <- cov2cor(solve(blocks[[i]]))
+    blocks[[i]] <- round(solve(sig),5)
     
-    return(list(theta=theta, zeropos=zeropos))
+    stopifnot(is.positive.definite(blocks[[i]])) 
+    
+    zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
+  }
+  theta <- do.call(bdiag, blocks)
+  theta[abs(theta) < 1e-3] = 0
+  sig <- round(solve(theta),5)
+  
+  return(list(theta=theta, zeropos=zeropos))
 }
 
 
@@ -367,84 +368,153 @@ genRandomTheta <- function(n,
   return(list(theta=theta, zeropos=zeropos))  
 }
 
-
 genAR <- function(n,
                   nBlocks,
                   bSizes,
-                  bandScale=4,
+                  bandWidthScale=4,
                   seed=1){
   
-    blocks <- vector(mode = "list") 
-    zeropos <- vector(mode = "list")
-    set.seed(seed)
-    
-    for(i in 1:nBlocks){
-      indices <- as.matrix(expand.grid(1:bSizes[i], 1:bSizes[i]))
-      blocks[[i]] <- diag(bSizes[i])
-      for(j in 1:nrow(indices)){
-        blocks[[i]][indices[j,1], indices[j,2]] <- 0.7^(abs(diff(indices[j,])))
-      } 
-      blocks[[i]] <- band(blocks[[i]],
-                          k1 = -ceiling(bSizes[i]/bandScale), 
-                          k2 = ceiling(bSizes[i]/bandScale))
-      while(!is.positive.definite(as.matrix(blocks[[i]]))){
-        cat(paste0("The ", i, "th block is not invertible! Adding 1. \n"))
-        blocks[[i]] <- blocks[[i]] + 1*diag(dim(blocks[[i]])[1])
-      }
-      sig <- cov2cor(solve(blocks[[i]]))
-      blocks[[i]] <- round(solve(sig),5)
-      stopifnot(is.positive.definite(as.matrix(blocks[[i]]))) 
-      zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
+  blocks <- vector(mode = "list") 
+  zeropos <- vector(mode = "list")
+  set.seed(seed)
+  for(i in 1:nBlocks){
+    indices <- as.matrix(expand.grid(1:bSizes[i], 1:bSizes[i]))
+    blocks[[i]] <- diag(bSizes[i])
+    for(j in 1:nrow(indices)){blocks[[i]][indices[j,1], indices[j,2]] <- 0.7^(abs(diff(indices[j,])))} 
+    blocks[[i]] <- band(blocks[[i]], k1 = -ceiling(bSizes[i]/bandWidthScale), k2 = ceiling(bSizes[i]/bandWidthScale))
+    while(!is.positive.definite(as.matrix(blocks[[i]]))){
+      cat(paste0("The ", i, "th block is not invertible! Adding 1. \n"))
+      blocks[[i]] <- blocks[[i]] + 1*diag(dim(blocks[[i]])[1])
     }
-    
-    theta <- do.call(bdiag, blocks)
-    theta[abs(theta) < 1e-3] = 0
-    sig <- round(solve(theta),5)
-    return(list(theta=theta, zeropos=zeropos))
+    sig <- cov2cor(solve(blocks[[i]]))
+    blocks[[i]] <- round(solve(sig),5)
+    stopifnot(is.positive.definite(as.matrix(blocks[[i]]))) 
+    zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
+  }
+  theta <- do.call(bdiag, blocks)
+  theta[abs(theta) < 1e-3] = 0
+  sig <- round(solve(theta),5)
+  return(list(theta=theta, zeropos=zeropos))
 }
 
 genStar <- function(n,
                     nBlocks,
                     bSizes,
                     seed=1){
-  #' generate star shaped precision matrix
+  #' generate star shaped precision matrix from a list of partial correlations
   #' 
+  #' @return matrix: normalized to have correlation matrix as inverse
+  blocks <- vector(mode = "list") # blocks of theta
+  zeropos <- vector(mode = "list")
+  set.seed(seed)
+  
+  for(i in 1:nBlocks){
+    blocks[[i]] <- diag(bSizes[i])
+    partial_cor <- runif(bSizes[i]-1, 0.1, 1) * sign(runif(1,-1,1))
+    blocks[[i]][1,2:bSizes[i]] <- partial_cor
+    blocks[[i]][2:bSizes[i], 1] <- partial_cor
+    while(!is.positive.definite(as.matrix(blocks[[i]]))){
+      blocks[[i]] <- blocks[[i]] + diag(bSizes[i])*.1
+    }
+    sig <- cov2cor(solve(blocks[[i]]))
+    blocks[[i]] <- round(solve(sig),5)
+    stopifnot(is.positive.definite(as.matrix(blocks[[i]]))) 
+    zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
+  }
+  theta <- do.call(bdiag, blocks)
+  theta[abs(theta) < 1e-3] = 0
+  sig <- round(solve(theta),5)
+  
+  return(list(theta=theta, zeropos=zeropos))
+}
+
+genEquiCor <- function(n,
+                       nBlocks,
+                       bSizes,
+                       corrs=c(0.6, 0.7),
+                       seed=1){
+  #' return an equi.cor covariance matrix with covariances 0.6,0.7
+  #' @output a list 
+  blocks <- vector(mode = "list") # blocks of theta
+  zeropos <- vector(mode = "list")
+  set.seed(seed)
+  
+  for(i in 1:nBlocks){
+    blocks[[i]] <- matrix(sample(corrs,1)*sign(runif(1,-1,1)), bSizes[i], bSizes[i])
+    diag(blocks[[i]]) <- 1
+    while(!is.positive.definite(as.matrix(blocks[[i]]))){
+      blocks[[i]] <- blocks[[i]] + diag(bSizes[i])*0.1
+    }
+    blocks[[i]] <- cov2cor(blocks[[i]])
+    stopifnot(is.positive.definite(as.matrix(blocks[[i]]))) 
+    theta <- round(solve(blocks[[i]]),5)
+    zeropos[[i]] <- which(abs(as.matrix(theta)) < 1e-3, arr.ind = T)
+  }
+  sig <- do.call(bdiag, blocks)
+  theta <- round(solve(sig),10)
+  theta[abs(theta) < 1e-3] = 0
+  
+  return(list(theta=theta, zeropos=zeropos))
+}
+
+
+genPartiallyConnect <- function(n,
+                                nBlocks,
+                                bSizes,
+                                threashold=0.05,
+                                seed=1){
+  #' generate partially connected precision matrix by threasholding entries from precision
   #' 
-    blocks <- vector(mode = "list") # blocks of theta
+  blocks <- vector(mode = "list")
+  zeropos <- vector(mode = "list")
+  set.seed(seed)
+  for(i in 1:nBlocks){
+    blocks[[i]] <- genPositiveDefMat(covMethod = "eigen", dim = bSizes[i])$Sigma
+    # blocks[[i]][abs(blocks[[i]]) < 0.1] <- 0
+    sig <- cov2cor(blocks[[i]])
+    blocks[[i]] <- round(solve(sig),5)
+    blocks[[i]][abs(blocks[[i]]) < threashold] <- 0
+    stopifnot(is.positive.definite(blocks[[i]]))
+    zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
+  }
+  theta <- do.call(bdiag, blocks)
+  theta[abs(theta) < 1e-3] = 0
+  sig <- round(solve(theta),5)
+  
+  return(list(theta=theta, zeropos=zeropos))
+}
+
+genIdentity <- function(n,
+                        nBlocks,
+                        bSizes){
+    blocks <- vector(mode = "list") 
     zeropos <- vector(mode = "list")
-    set.seed(seed)
-    
     for(i in 1:nBlocks){
-      # blocks[[i]] <- matrix(1,bSizes[i], bSizes[i])
-      # diag(blocks[[i]])[2:bSizes[i]] <- sample(3:10, size = 1)
-      # sig <- cov2cor(blocks[[i]])
-      # blocks[[i]] <- round(solve(sig),5)
-      
-      # stopifnot(is.positive.definite(blocks[[i]]))
-      
+      blocks[[i]] <- diag(bSizes[i])
       zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
     }
-    theta <- do.call(bdiag, blocks)
-    theta[abs(theta) < 1e-3] = 0
-    sig <- round(solve(theta),5)
-    
+    sig <- do.call(bdiag, blocks)
+    theta <- round(solve(sig),5)
     return(list(theta=theta, zeropos=zeropos))
 }
 
 genTheta <- function(n,
                      graphType = 'exp.decay',
-                     prob = 1/5, 
+                     prob = 1/5,
                      nBlocks = 5,
                      randomBS= T, 
-                     fix.zero = T, 
-                     seed = 1,
-                     epsilon = 1
+                     bandScale = 4,
+                     corrs = c(0.6,0.7),
+                     threashold=0.05,
+                     seed = 1
                      ){
   #' generate the precision matrix
-  #' @param 
-  #' @param 
-  #' @return y
-  
+  #' @param randomBS: boolean. Whether or not to use random block sizes.
+  #' @param prob: float number, sparsity level in genRandomTheta
+  #' @param bandScale:
+  #' @param corrs: vector. correlations in genEquiCor
+  #' @param threashold: float number, threashold for partially connect
+  #' @return list of precision matrix and zero positions
   if(randomBS){
     set.seed(seed)
     prop <- runif(nBlocks) 
@@ -455,63 +525,17 @@ genTheta <- function(n,
   }
   num_blocks = ceiling(n/block_size)
   message('Block sizes: ', paste(block_size, collapse = " "))
-  
-  switch(struct, 
-         # "diagonal" ={
-         #   blocks <- vector(mode = "list") # blocks of sigma
-         #   zeropos <- vector(mode = "list")
-         #   for(i in 1:num_blocks){
-         #     blocks[[i]] <- diag(block_size)
-         #     zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
-         #   }
-         #   sig <- do.call(bdiag, blocks)
-         #   theta <- round(solve(sig),5)
-         # }, 
-         
-        
-         "equi.cor" = {
-           blocks <- vector(mode = "list") # blocks of theta
-           zeropos <- vector(mode = "list")
-           set.seed(seed)
-           for(i in 1:num_blocks){
-             if(i == num_blocks)
-               block_size = n - (num_blocks-1)*block_size
-             blocks[[i]] <- matrix(0.7,block_size, block_size)
-             diag(blocks[[i]]) <- 1
-             if(!is.positive.definite(blocks[[i]])) stop("Theta is not positive definite !!!")
-             zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
-             print(zeropos[[i]])
-           }
-           sig <- do.call(bdiag, blocks)
-           theta <- round(solve(sig),10)
-           theta[abs(theta) < 1e-3] = 0
-         },
-         "partially_connect" = {
-           blocks <- vector(mode = "list") # blocks of theta
-           zeropos <- vector(mode = "list")
-           set.seed(seed)
-           for(i in 1:num_blocks){
-             if(i == num_blocks)
-               block_size = n - (num_blocks-1)*block_size
-             blocks[[i]] <- genPositiveDefMat(covMethod = "eigen", dim = block_size)$Sigma
-             # blocks[[i]][abs(blocks[[i]]) < 0.1] <- 0
-             sig <- cov2cor(blocks[[i]])
-             blocks[[i]] <- round(solve(sig),5)
-             blocks[[i]][abs(blocks[[i]]) < 0.1] <- 0
-             if(!is.positive.definite(blocks[[i]]))
-               stop(paste0("Block ",i," is not PD!"))
-             zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
-           }
-           theta <- do.call(bdiag, blocks)
-           theta[abs(theta) < 1e-3] = 0
-           sig <- round(solve(theta),5)
-         }
+  switch(graphType, 
+         genIdentity = genIdentity(n, nBlocks, bSizes),
+         genToeplitz = genToeplitz(n, nBlocks, bSizes, seed),
+         genExpDecay = genExpDecay(n, nBlocks, bSizes, seed),
+         genRandomTheta = genRandomTheta(n, nBlocks, bSizes, prob, seed),
+         genAR = genAR(n, nBlocks, bSizes, bandScale, seed),
+         genStar = genStar(n, nBlocks, bSizes, seed),
+         genEquiCor = genEquiCor(n, nBlocks, bSizes, corrs, seed),
+         genPartiallyConnect = genPartiallyConnect(n, nBlocks, bSizes, threashold, seed)
   )
-  return(list(theta=theta, sig=sig, theta_type=struct, zeropos=zeropos))
 }
-
-
-
 
 # Simulate observational data from network DAG ----------------------------
 
@@ -521,20 +545,15 @@ sim_X <- function(vers, omg, sig, b){
   #' @param sig matrix. row-covariance matrix 
   #' @param b matrix. DAG weights
   #'@return A list of X and E, both are matrices
-
   p = length(omg)
   n = dim(sig)[1]
-  
   set.seed(vers)
   eps_mat <- matrix(0, n, p)
   eps_mat[,1] <- mvrnorm(1, mu = rep(0, n), Sigma = omg[1]^2*sig)
   eps_mat[,2] <- mvrnorm(1, mu = rep(0, n), Sigma = omg[2]^2*sig)
-  
   X <- matrix(0, n, p)
-  
   X[,1] <- eps_mat[,1]
   X[,2] <- X[,1]*b[1,2] + eps_mat[,2]
-  
   for(i in 3:p) {
     eps_mat[, i] <- mvrnorm(1, mu = rep(0, n), Sigma = omg[i]^2*sig)
     X[,i] <- rowSums(sweep(X[,1:i-1], MARGIN = 2, b[1:i-1,i], "*")) + eps_mat[,i]
