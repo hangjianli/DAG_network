@@ -1,8 +1,11 @@
 library(Matrix)
 library(corpcor)
 library(clusterGeneration)
+library(igraph)
+library(bnlearn)
+library(magic)
+
 # args_for_parameter <- function(){
-#   # Input parameters from terminal ------------------------------------------
 #   n <- readline(prompt = "Choose n >> ")
 #   n <- as.integer(n)
 #   p <- readline(prompt = "Choose p >> ")
@@ -43,15 +46,11 @@ library(clusterGeneration)
 #               setting = setting))
 # }
 
-genDAG <- function(p,)
-#'     
-
-genDAGdata <- function(args, 
+___genAllParams <- function(args,
                        seed = 10, 
                        bname = NULL, 
                        btype = NULL, 
-                       theta_name = NULL
-){
+                       theta_name = NULL){
   if(args$bchoice == "y") {
     # cat("B was generated from data. \n")
     if(is.null(bname))
@@ -112,23 +111,21 @@ genDAGdata <- function(args,
 }
 
 # generate omega ----------------------------------------------------------
-gen.omg <- function(p, iid=F, seed = 1){
+gen.omg <- function(p, 
+                    iid = F, 
+                    seed = 1){
   #' return the std of noise variable for all columns
   #' @param p, integer, number of nodes in DAG
   #' @param iid, boolean, default False
   #' @param seed, default 1
   #'
-  
-  if(iid) {
-    return(rep(1,p))
-  }
+  if(iid){ return(rep(1,p)) }
   set.seed(seed)
   omg <- sample(1:5, size = 10, replace = T) * 0.1
   return(omg)
 }
 
 # generate Beta-----------------------------------------------------
-
 genB <- function(p,
                   nEdges,
                   ub = 1,
@@ -138,7 +135,6 @@ genB <- function(p,
                   ){
   #' generate random DAG B matrix with positive/negative entries
   #' @return matrix
-  
   set.seed(seed)
   newDAG <- t(sparsebnUtils::random.dag(nnode = p, nedge = nEdges, permute = permute))
   newB <- (newDAG!=0) + 0
@@ -148,7 +144,7 @@ genB <- function(p,
 }
 
 
-gen.B.from.btrue <- function(p,
+___gen.B.from.btrue <- function(p,
                              B_true, 
                              seed = 394, 
                              btype = NULL, 
@@ -180,72 +176,83 @@ gen.B.from.btrue <- function(p,
               realp=p))
 }
 
-
-constrB_from_BNrepo <- function(name = "andes", type = "discrete", ncopy = 1){
-  # Given name and ncopy, generate adjacency matrix B_true
-  
-  load(paste0("~/Documents/research/dag_network/BNRepo/", name, ".rda"))
-  # load("~/Dropbox/research/code/BNRepo/arth150.rda")
-  # load(paste0("~/../Dropbox/research/code/BNRepo/", name, ".rda")) 
+genBdiscrete <- function(name, 
+                         ncopy){
+  #' generate block diagonal B matrix from discrete BNlearn network
+  #' @return list. List of adjacency matrix B_true, size, and blocksize
+  load(paste0("~/Documents/research/dag_network/data/BNRepo/", name, ".rda"))
   ordering <- node.ordering(bn)
   pp <- length(ordering)
+  B_true <- matrix(0, pp, pp)
+  dimnames(B_true) <- list(ordering, ordering)
+  for(i in 1:pp){
+    if(length(bn[[ordering[i]]][[2]]) == 0) next
+    B_true[bn[[ordering[i]]][[2]], ordering[i]] <- 1
+  }
+  if(ncopy > 1){
+    Blist <- vector("list", ncopy)
+    for(i in 1:ncopy){
+      Blist[[i]] <- B_true
+    } 
+    B_true <- do.call(adiag, Blist)  
+  }
+  s0 <- sum(B_true == 1)
+  p <- pp * ncopy  
+  return(list(B_true = B_true, realp = p, pp = pp))
+}
+
+genBcontinuous <- function(name, 
+                           ncopy){
+  load(paste0("~/Documents/research/dag_network/data/BNRepo/", name, ".rda"))
+  ordering <- node.ordering(bn)
+  pp <- length(ordering)
+  B_true <- matrix(0, pp, pp)
+  dimnames(B_true) <- list(ordering, ordering)
+  MAGIC_NIAB_B <- lapply(bn, "[[", 4)
+  wrong_names <- names(MAGIC_NIAB_B)
+  for(i in 1:length(MAGIC_NIAB_B)){
+    if(length(names(MAGIC_NIAB_B[[i]])) == 1) next
+    B_true[,wrong_names[i]][names(MAGIC_NIAB_B[[i]])[-1]] <- MAGIC_NIAB_B[[i]][-1]
+  }
   
+  if(ncopy > 1){
+    Blist <- vector("list", ncopy)
+    for(i in 1:ncopy) Blist[[i]] <- B_true
+    B_true <- do.call(adiag, Blist)  
+  }
+  s0 <- sum(B_true[upper.tri(B_true)] != 0)
+  p <- pp * ncopy
+  
+  return(list(B_true = B_true, realp = p, pp = pp))
+}
+
+genBfromBNlearn <- function(name = "andes", 
+                            type = "discrete", 
+                            ncopy = 1){
+  #' Given name and ncopy, generate adjacency matrix B_true
+  #' @return 
+  stopifnot(type %in% c('discrete', 'continuous'))
   if(type == "discrete"){
-    B_true <- matrix(0, pp, pp)
-    dimnames(B_true) <- list(ordering, ordering)
-    for(i in 1:pp){
-      if(length(bn[[ordering[i]]][[2]]) == 0) next
-      B_true[bn[[ordering[i]]][[2]], ordering[i]] <- 1
-    }
-    if(ncopy > 1){
-      Blist <- vector("list", ncopy)
-      for(i in 1:ncopy) Blist[[i]] <- B_true
-      B_true <- do.call(adiag, Blist)  
-    }
-    s0 <- sum(B_true == 1)
-    p <- pp * ncopy  
-    return(list(B_true = B_true, realp = p, pp = pp))
+    return(genBdiscrete(name, ncopy))
+  }else{
+    return(genBcontinuous(name, ncopy))
   }
-  
-  if(type == "continuous"){
-    B_true <- matrix(0, pp, pp)
-    dimnames(B_true) <- list(ordering, ordering)
-    MAGIC_NIAB_B <- lapply(bn, "[[", 4)
-    wrong_names <- names(MAGIC_NIAB_B)
-    for(i in 1:length(MAGIC_NIAB_B)){
-      if(length(names(MAGIC_NIAB_B[[i]])) == 1) next
-      B_true[,wrong_names[i]][names(MAGIC_NIAB_B[[i]])[-1]] <- MAGIC_NIAB_B[[i]][-1]
-    }
-    
-    if(ncopy > 1){
-      Blist <- vector("list", ncopy)
-      for(i in 1:ncopy) Blist[[i]] <- B_true
-      B_true <- do.call(adiag, Blist)  
-    }
-    s0 <- sum(B_true[upper.tri(B_true)] != 0)
-    p <- pp * ncopy
-    return(list(B_true = B_true, realp = p, pp = pp))
-  }
-  stop("Bad network!!")
 }
 
 
-
-
-# generate Theta/Sigma ---------------------------------------
-gen.theta.from.data <- function(name_theta, block_size = 20, n = 500, seed=5){
+# generate Theta from real network ----------------------------------------
+gen.theta.from.data <- function(name_theta, 
+                                block_size = 20, 
+                                n = 500,
+                                seed=5){
   mydata <- read.table(paste0("data/real_Sigma/", name_theta, ".txt"), quote="\"", comment.char="")
   adjmat <- get.adjacency(graph = graph_from_edgelist(el = as.matrix(mydata[,1:2]), directed = F))
   adjmat[adjmat == 2] <- 1
   diag(adjmat) <- 1
   trueN <- dim(adjmat)[1]
-  if(trueN < n){
-    cat("True N is ", trueN, "\n")
-    stop("N is smaller than n from data. \n")
-  }
+  stopifnot(trueN >= n) # check if N is smaller than n from data
   adjmat <- adjmat[1:n, 1:n]
-  # image(as(adjmat, class(estimands$theta)))
-  
+  #     image(as(adjmat, class(estimands$theta)))
   num_blocks = ceiling(n/block_size)
   blocks <- vector(mode = "list", length = num_blocks) # blocks of sigma
   zeropos <- vector(mode = "list", length = num_blocks)
@@ -273,6 +280,9 @@ gen.theta.from.data <- function(name_theta, block_size = 20, n = 500, seed=5){
   return(list(theta=theta, sig=sig, theta_type=name_theta, zeropos=zeropos))
 }
 
+
+
+# simulate Theta/Sigma ---------------------------------------
 genToeplitz <- function(n,
                         nBlocks,
                         bSizes,
@@ -539,7 +549,7 @@ genTheta <- function(n,
 
 # Simulate observational data from network DAG ----------------------------
 
-sim_X <- function(vers, omg, sig, b){
+sim_X <- function(omg, sig, b, vers=1){
   #' sample data from the given network DAG
   #' @param omg vector. Standard deviation of error
   #' @param sig matrix. row-covariance matrix 
@@ -558,7 +568,7 @@ sim_X <- function(vers, omg, sig, b){
     eps_mat[, i] <- mvrnorm(1, mu = rep(0, n), Sigma = omg[i]^2*sig)
     X[,i] <- rowSums(sweep(X[,1:i-1], MARGIN = 2, b[1:i-1,i], "*")) + eps_mat[,i]
     if (i %% 50 == 0)
-      cat("Getting ", i, "th column of X. \n" )
+      message("Getting ", i, "th column of X. \n" )
   }
   dimnames(X) <- list(NULL, as.character(1:p))
   return(list(X = X, eps_mat = eps_mat))
