@@ -2,7 +2,7 @@ ThetaexpDecay <- genPartiallyConnect(n, nBlocks, bSizes, threashold = 0.05, seed
 ThetaexpDecay$theta %>% cov2cor()
 ThetaexpDecay$zeropos
 
-test <- genTheta(10, graphType = 'genPartiallyConnect', nBlocks = 2)
+test <- genTheta(10, graphType = 'genPartiallyConnect', threashold = 0.1, nBlocks = 2)
 test
 
 # # Network811 <- read.table("real_Sigma/Cross_Parker-Consulting_info.txt", quote = "\"", comment.char = "")
