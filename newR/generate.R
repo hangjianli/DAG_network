@@ -241,7 +241,7 @@ genBfromBNlearn <- function(name = "andes",
 
 
 # generate Theta from real network ----------------------------------------
-gen.theta.from.data <- function(name_theta, 
+___gen.theta.from.data <- function(name_theta, 
                                 block_size = 20, 
                                 n = 500,
                                 seed=5){
