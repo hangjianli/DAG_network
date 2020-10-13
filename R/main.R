@@ -3,22 +3,22 @@ rm(list = ls())
 source("R/loadpackages.R")
 # helper functions --------------------------------------------------------
 source("R/helper_funcs.R")
-source("R/data_generation/gen_params_funcs.R")
-source("summary_func.R")
+source("R/gen_params_funcs.R")
+source("R/summary_func.R")
 # models function ------------------------------------------------------------------
-source("lassoIdentTheta_func.R")
-source("main_iter_fast_func.R")
-source("scale_lasso_func.R")
-source("flipflop.R")
+source("R/lassoIdentTheta_func.R")
+source("R/main_iter_fast_func.R")
+source("R/scale_lasso_func.R")
+source("R/flipflop.R")
 # execution function ---------------------------------------------------------------
-source("run_three_model_func.R")
-source("run_many_sim_func.R")
-source("run_sim_main_func.R")
-source("BIC_flipflop_func.R")
-source('unordered_sims.R')
-source("main_iteration_fast2.R")
-source("ordered_sims.R")
-source("ordered_sims_new.R")
+source("R/run_three_model_func.R")
+source("R/run_many_sim_func.R")
+source("R/run_sim_main_func.R")
+source("R/BIC_flipflop_func.R")
+source('R/unordered_sims.R')
+source("R/main_iteration_fast2.R")
+source("R/ordered_sims.R")
+source("R/ordered_sims_new.R")
 
 
 
@@ -35,16 +35,17 @@ args <- args_for_parameter()
 dir.create(path = paste0('output/', args$setting))
 saveRDS(args, file = paste0('~/Documents/research/dag_network/output/', args$setting, "/args.rds"))
 
-estimands <- generate_parameters(args = args, seed = 1, bname = "ecoli70",
-                                 btype = "continuous", theta_name = NULL)
+estimands <- generate_parameters(args = args, seed = 1, bname = "hailfinder",
+                                 btype = "discrete", theta_name = "USairport500")
                                  # theta_name = "USairport500",
                                  # bname = "pathfinder", btype = "discrete")
 image(estimands$theta)
 image(as(estimands$b, class(estimands$theta)))
-estimands$sig <- diag(args$n)
-estimands$theta <- diag(args$n)
+estimands$b[estimands$b!=0] %>% as.numeric() %>% hist(breaks=20)
+# estimands$sig <- diag(args$n)
+# estimands$theta <- diag(args$n)
 # image(as(bestX$theta_est, class(estimands$theta)))
-saveRDS(estimands, file = paste0('~/Documents/research/dag_network/output/', args$setting, "/estimands.rds"))
+saveRDS(estimands, file = paste0('output/', args$setting, "/estimands.rds"))
 # run sims ----------------------------------------------------------------
 ordered_runsims_new(start = 2, 2, args, estimands, max.iter = 100, lam_div = 40)
 
