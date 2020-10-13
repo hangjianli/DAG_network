@@ -294,7 +294,6 @@ genToeplitz <- function(n,
   #' @return list: list of precision matrix and zero positions 
   blocks <- vector(mode = "list") 
   zeropos <- vector(mode = "list")
-  
   set.seed(seed)
   for(i in 1:nBlocks){
     indices <- as.matrix(expand.grid(1:bSizes[i], 1:bSizes[i]))
@@ -302,15 +301,14 @@ genToeplitz <- function(n,
     for(j in 1:nrow(indices)){
       blocks[[i]][indices[j,1], indices[j,2]] <- 0.7^abs(diff(indices[j,]))
     } 
-    
     stopifnot(is.positive.definite(blocks[[i]])) 
-    
     theta <- round(solve(blocks[[i]]),5)
     zeropos[[i]] <- which(abs(as.matrix(theta)) < 1e-3, arr.ind = T)
   }
   sig <- do.call(Matrix::bdiag, blocks)
   theta <- round(solve(sig),5)
   theta[abs(theta) < 1e-3] = 0
+  
   return(list(theta=theta, zeropos=zeropos))
 }
 
@@ -332,15 +330,13 @@ genExpDecay <- function(n,
     } 
     sig <- cov2cor(solve(blocks[[i]]))
     blocks[[i]] <- round(solve(sig),5)
-    
     stopifnot(is.positive.definite(blocks[[i]])) 
-    
     zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
   }
   theta <- do.call(bdiag, blocks)
   theta[abs(theta) < 1e-3] = 0
   sig <- round(solve(theta),5)
-  
+
   return(list(theta=theta, zeropos=zeropos))
 }
 
@@ -354,7 +350,6 @@ genRandomTheta <- function(n,
   set.seed(seed)
   blocks <- vector(mode = "list") 
   zeropos <- vector(mode = "list")  
-  
   for(i in 1:nBlocks){
     theta.val <- rbinom(bSizes[i]^2, 1, prob = prob)
     blocks[[i]] <- matrix(theta.val, bSizes[i], bSizes[i])
@@ -363,12 +358,9 @@ genRandomTheta <- function(n,
     blocks[[i]][lower.tri(blocks[[i]])]<- 0
     blocks[[i]] <- (blocks[[i]]+t(blocks[[i]]))/2
     blocks[[i]][abs(blocks[[i]]) < 0.05] = 0
-    
     sig <- cov2cor(solve(blocks[[i]]))
     blocks[[i]] <- round(solve(sig),5)
-    
     stopifnot(is.positive.definite(blocks[[i]])) 
-    
     zeropos[[i]] <- which(abs(blocks[[i]]) < 1e-3, arr.ind = T)
   }
   theta <- do.call(bdiag, blocks)
@@ -383,7 +375,6 @@ genAR <- function(n,
                   bSizes,
                   bandWidthScale=4,
                   seed=1){
-  
   blocks <- vector(mode = "list") 
   zeropos <- vector(mode = "list")
   set.seed(seed)
@@ -403,7 +394,8 @@ genAR <- function(n,
   }
   theta <- do.call(bdiag, blocks)
   theta[abs(theta) < 1e-3] = 0
-  sig <- round(solve(theta),5)
+  sig <- round(solve(theta), 5)
+  
   return(list(theta=theta, zeropos=zeropos))
 }
 
