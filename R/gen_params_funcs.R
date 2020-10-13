@@ -91,7 +91,7 @@ generate_parameters <- function(args,
   # Must generate b first to determine p !!
   b <- b.temp$b
   s0 <- b.temp$s0
-  # zerosb <- b.temp$zerosb
+  zerosb <- b.temp$zerosb
   realp <- b.temp$realp
   
   omg.temp <- gen.omg(realp, seed = seed, iid = args$iid)
@@ -121,7 +121,7 @@ gen.omg <- function(p, seed = 23, iid=FALSE){
     return(list(omg = omg, omg.sq = omg.sq))
   }
   set.seed(seed)
-  omg <- runif(min = 0.1,max = 0.5,n = p) # omega's between 0,1
+  omg <- runif(min = 0.1,max = 2,n = p) # omega's between 0,1
   omg[1] <- 1  
   omg.sq <- omg^2
   return(list(omg = omg, omg.sq = omg.sq))
@@ -170,11 +170,10 @@ gen.B.from.btrue <- function(p, B_true, seed = 394, btype = NULL, lower.thresh =
 
 
 constrB_from_BNrepo <- function(name = "andes", type = "discrete", ncopy = 1){
-  # Given name and ncopy, generate adjacency matrix B_true
+  #' Given name and ncopy, generate adjacency matrix B_true
+  #' 
 
-  load(paste0("~/Documents/research/dag_network/BNRepo/", name, ".rda"))
-  # load("~/Dropbox/research/code/BNRepo/arth150.rda")
-  # load(paste0("~/../Dropbox/research/code/BNRepo/", name, ".rda")) 
+  load(paste0("data/BNRepo/", name, ".rda"))
   ordering <- node.ordering(bn)
   pp <- length(ordering)
   
@@ -234,7 +233,7 @@ block.func <- function(x, eps){
 }
 
 gen.theta.from.data <- function(name_theta, block_size = 20, n = 500, seed=5){
-  mydata <- read.table(paste0("~/Dropbox/research/code/real_Sigma/", name_theta, ".txt"), quote="\"", comment.char="")
+  mydata <- read.table(paste0("data/real_Sigma/", name_theta, ".txt"), quote="\"", comment.char="")
   adjmat <- get.adjacency(graph = graph_from_edgelist(el = as.matrix(mydata[,1:2]), directed = F))
   adjmat[adjmat == 2] <- 1
   diag(adjmat) <- 1
@@ -401,6 +400,26 @@ gen.theta <- function(struct = 'exp.decay',
                block_size = n - (num_blocks-1)*block_size
              blocks[[i]] <- genPositiveDefMat(covMethod = "eigen", dim = block_size)$Sigma
              # blocks[[i]][abs(blocks[[i]]) < 0.1] <- 0
+             sig <- cov2cor(blocks[[i]])
+             blocks[[i]] <- round(solve(sig),5)
+             blocks[[i]][abs(blocks[[i]]) < 0.1] <- 0
+             if(!is.positive.definite(blocks[[i]]))
+               stop(paste0("Block ",i," is not PD!"))
+             zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
+           }
+           theta <- do.call(bdiag, blocks)
+           theta[abs(theta) < 1e-3] = 0
+           sig <- round(solve(theta),5)
+         },
+         "block_diag_dense" = {
+           blocks <- vector(mode = "list") # blocks of theta
+           zeropos <- vector(mode = "list")
+           set.seed(seed)
+           for(i in 1:num_blocks){
+             if(i == num_blocks)
+               block_size = n - (num_blocks-1)*block_size
+             A <- matrix(runif(block_size^2)*2-1, ncol=block_size) 
+             blocks[[i]] <- t(A) %*% A
              sig <- cov2cor(blocks[[i]])
              blocks[[i]] <- round(solve(sig),5)
              blocks[[i]][abs(blocks[[i]]) < 0.1] <- 0

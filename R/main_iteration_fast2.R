@@ -1,9 +1,11 @@
-main_iteration_fast2 <- function(X, vers, 
-                                estimands,
-                                args,
-                                max.iter = 50, 
-                                lambda = 0.01, 
-                                lambda2 = 0.1){
+main_iteration_fast2 <- function(
+  X, vers, 
+  estimands,
+  args,
+  max.iter = 50, 
+  lambda = 0.01, 
+  lambda2 = 0.1
+){
   n <- dim(X)[1]
   p <- dim(X)[2]
   num_blocks <- ceiling(args$n/args$block_size)
