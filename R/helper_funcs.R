@@ -300,12 +300,12 @@ compute_SHD_dag <- function(adj1, adj_true, s0){
       } 
     }
   }
-  myshd = FN + FP
-  TP = s0 - FN
+  myshd = as.integer(FN + FP)
+  TP = as.integer(s0 - FN)
   
   
-  return(list(pnum = pnum,
-              FN = FN,
+  return(list(pnum = as.integer(pnum),
+              FN = as.integer(FN),
               TP = TP,
               FDR = FP / (FP + TP),
               JI = TP / (pnum + s0 - TP),

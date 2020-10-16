@@ -21,8 +21,6 @@ source("R/ordered_sims.R")
 source("R/ordered_sims_new.R")
 
 
-
-
 p = 10
 n = 5
 omgTrue <- gen.omg(p = p, iid = T)
