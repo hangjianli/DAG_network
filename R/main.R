@@ -19,6 +19,11 @@ source('R/unordered_sims.R')
 source("R/main_iteration_fast2.R")
 source("R/ordered_sims.R")
 source("R/ordered_sims_new.R")
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 68141364df876c0786cc848a497a9b213e9948d0
 
 
 p = 10

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 run_bcd <- function(
   #' 
   #' @block_size: args$block_size
@@ -63,6 +64,22 @@ run_bcd <- function(
   }
   cat(paste0('[INFO] diff_beta: ', round(diff_beta, 7), "\n"))
   cat(paste0('[INFO] diff_theta: ', round(diff_theta, 7), "\n"))
+=======
+run_bcd <- function(X, tol=1e-7){
+  #' run BCD to estimate param
+  #' 
+  diff <- 1 
+  n <- dim(X)[1]
+  p <- dim(X)[2]
+  thetahat <- diag(n)
+  lambda.path <- get_lam_path(p, X, rep(1,p), 10, 100)
+  while(diff > tol){
+    bhat <- estimate_b(thetahat, X)
+    S <- get_sample_cov(X, h_omega, bhat)
+    thetahat <- estimate_theta(bhat, X)
+    
+  }
+>>>>>>> 68141364df876c0786cc848a497a9b213e9948d0
   return(list(bhat=bhat, thetahat=thetahat))
 }
 
@@ -88,6 +105,11 @@ estimate_b <- function(
     .combine = "cbind",
     .packages = "glmnet"
     ) %dopar% {
+<<<<<<< HEAD
+=======
+    # lambda <- cv.glmnet(as.matrix(choles)%*%XX[,1:i],
+    #                     as.matrix(choles)%*%XX[,i+1])$lambda.min
+>>>>>>> 68141364df876c0786cc848a497a9b213e9948d0
     lars.temp <- glmnet(x = as.matrix(choles)%*%XX[,1:i],
                         y = as.matrix(choles)%*%XX[,i+1],
                         alpha = 1,
@@ -120,6 +142,7 @@ estimate_theta <- function(
       zeros = NULL
     temp_sig <- glasso(s = S[(1+block_size*(i-1)) : min(block_size*i,n), 
                              (1+block_size*(i-1)) : min(block_size*i,n)],
+<<<<<<< HEAD
                        thr = 1.0e-7,
                        rho = lambda2/p,
                        zero = zeros,
@@ -129,12 +152,26 @@ estimate_theta <- function(
   }
   sig.est <- as.matrix(do.call(bdiag, sig.blocks))
   theta_est <- solve(sig.est)
+=======
+                       thr = 1.0e-4,
+                       rho = lambda2/p,
+                       zero = zeros,
+                       penalize.diagonal = T)
+    sig.blocks[[i]] <- cov2cor(temp_sig$w) 
+  }
+  sig.est <- as.matrix(do.call(bdiag, sig.blocks))
+  theta_est <- round(solve(sig.est), 5)
+>>>>>>> 68141364df876c0786cc848a497a9b213e9948d0
   return(theta_est)
 }
 
 
 
+<<<<<<< HEAD
 estimate_omega_square <- function(X){
+=======
+estimate_omega <- function(X){
+>>>>>>> 68141364df876c0786cc848a497a9b213e9948d0
   p <- dim(X)[2]
   n <- dim(X)[1]
   res = numeric(length = p)
@@ -156,6 +193,7 @@ estimate_omega_square <- function(X){
   return(res)
 }
 
+<<<<<<< HEAD
 eval_loss_func <- function(X, homega, hbeta, htheta, S, lam1, lam2){
   n <- dim(X)[1]
   p <- dim(X)[2]
@@ -174,3 +212,8 @@ eval_loss_func <- function(X, homega, hbeta, htheta, S, lam1, lam2){
 
 
 
+=======
+calculate_likelihood <- function(){
+  
+}
+>>>>>>> 68141364df876c0786cc848a497a9b213e9948d0

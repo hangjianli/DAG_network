@@ -1,16 +1,11 @@
-source(file = 'R/loadpackages.R')
-n <- 10
-p <- 15
-
 # new simulation ----------------------------------------------------------
-
-
 X_ <- sim_X(vers = 1, 
             n = args$n,
             p = estimands$realp,
             omg.sq = estimands$omg.sq,
             sig = estimands$sig, 
             b = estimands$b)
+
 X <- X_$X
 n <- dim(X)[1]
 p <- dim(X)[2]
@@ -227,4 +222,3 @@ bhat_stats_baseline
 
 
 compute_SHD_dag(adj1 = matrix(0, p, p), adj_true = bstar_adj, estimands$s0) %>% unlist()
-
