@@ -25,8 +25,8 @@ run_bcd <- function(
   old_htheta <- matrix(0, n, n)
   diff_beta <- 1
   diff_theta <- 1
-  iter <- 1
-  while(diff_beta > tol || diff_theta > tol){
+  iter <- 0
+  while((diff_beta > tol || diff_theta > tol) && iter < maxIter){
     bhat <- estimate_b(
       n = n, p = p, X = X,
       theta_hat = thetahat,
@@ -98,7 +98,7 @@ estimate_b <- function(
       family = "gaussian",
       thresh = 1e-10
     )
-    c(as.numeric(lars.temp$beta), rep(0, p - i))
+    c(as.numeric(lars.temp$beta)[-1], rep(0, p - i + 1))
     }
   est_B[,2:p] <- B_temp
   return(est_B)
