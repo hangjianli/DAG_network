@@ -238,7 +238,7 @@ bench_sol_path <- function(
   BICscores_bench <- minrowcor_bench <- rep(0, length(lambda.path))
   for(k in 1:length(lambda.path)){
     set.seed(1)
-    cat(paste0("===============================================================","\n"))
+    cat(paste0("=======================================================","\n"))
     cat(paste0('[INFO] Lambda k: ', k, "\n"))
     res <- run_bcd(
       X = X, 
@@ -289,8 +289,18 @@ sim_newalgo_ordered <- function(args, estimands, start_sim, end_sim, lamLen=10){
                 b = estimands$b)
     saveRDS(X_, file = "X.rds")
     X <- X_$X
-    networkDAG_sol_path(X,block_size=args$block_size, estimands, lambda_len = lamLen)
-    bench_sol_path(X,block_size=args$block_size, estimands, lambda_len = lamLen)
+    networkDAG_sol_path(
+      X,
+      block_size=args$block_size, 
+      estimands, 
+      lambda_len = lamLen
+    )
+    bench_sol_path(
+      X,
+      block_size=args$block_size, 
+      estimands, 
+      lambda_len = lamLen
+    )
     setwd("~/Documents/research/dag_network")
   }
 }
@@ -302,6 +312,7 @@ get_shd_ordered <- function(
   kbenchbic = NULL, 
   kbenchcor = NULL,
   sim,
+  simID,
   bstar_adj, 
   estimands, 
   thresh = 0.1
@@ -333,7 +344,7 @@ get_shd_ordered <- function(
 }
 
 
-process_output_ordered <- function(simID='001'){
+process_output_ordered <- function(simID='001', thr=0.1){
   setwd(paste0('output/', simID))
   args <- readRDS('args.rds')
   estimands <- readRDS('estimands.rds')
@@ -355,9 +366,10 @@ process_output_ordered <- function(simID='001'){
       kbenchbic = bestk_bic_baseline, 
       kbenchcor = bestk_cor_baseline,
       sim,
+      simID,
       bstar_adj, 
       estimands, 
-      thresh = 0.1)
+      thresh = thr)
     saveRDS(SHD_stats, file = paste0(simID, '--', sim, "/SHDstats.rds"))
   }
   setwd("~/Documents/research/dag_network")
@@ -365,7 +377,7 @@ process_output_ordered <- function(simID='001'){
 
 
 get_all_shd_ordered <- function(simID, estimands, num_sim){
-  thrs <- seq(0, 0.8,length.out = 20)
+  thrs <- seq(0, 0.5,length.out = 10)
   allShdS <- vector(mode = "list", length = length(thrs))
   bstar_adj <- 1*(abs(estimands$b) > 0)
   for(sim in 1:num_sim){
@@ -386,11 +398,15 @@ get_all_shd_ordered <- function(simID, estimands, num_sim){
         kbenchbic = bestk_bic_baseline, 
         kbenchcor = bestk_cor_baseline,
         sim,
+        simID = simID,
         bstar_adj, 
         estimands, 
         thresh = thrs[j])
     }
-    bestbench <- which.min(sapply(allShdS, function(x) abs(x$shdXbaseline['pnum'] - allshd$shdXmain['pnum'])))
+    bestbench <- which.min(sapply(
+      allShdS, 
+      function(x) abs(x$shdXbaseline['pnum'] - allshd$shdXmain['pnum'])
+    ))
     allshd$shdXbaseline <- allShdS[[bestbench]]$shdXbaseline
     allshd$shdXbaselineCor <- allShdS[[bestbench]]$shdXbaselineCor
     saveRDS(allshd, paste0(simID, "--", sim, "/SHDclose.rds"))
@@ -399,9 +415,8 @@ get_all_shd_ordered <- function(simID, estimands, num_sim){
   }
 }
 
-get_average_shd <- function(simID, nsim ){
-  nsim = as.numeric(args$num_sim)
-  SHDres <- readRDS(paste0("output/", simID,  '/--1/', "SHDclose.rds"))
+get_average_shd <- function(simID, nsim){
+  SHDres <- readRDS(paste0("output/", simID, '/', simID, '--1/', "SHDclose.rds"))
   num_statistic <- length(names(SHDres[[1]]))
   total <- data.frame(
     row.names = names(SHDres[[1]]), 
@@ -411,7 +426,9 @@ get_average_shd <- function(simID, nsim ){
     shdXbaselineCor=rep(0, num_statistic)
   )
   for (sim in 1:nsim){
-    allshd <- as.data.frame(readRDS(paste0("output/", simID,  '/--', sim, "/SHDclose.rds")))
+    allshd <- as.data.frame(
+      readRDS(paste0("output/", simID,  '/', simID, "--", sim, "/SHDclose.rds"))
+    )
     allshd <- allshd[, names(total)]
     total <- total + allshd
   }
