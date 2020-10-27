@@ -179,12 +179,10 @@ BIC_dag <- function(X, bmle, omgmle, theta){
   n <- dim(X)[1]
   p <- dim(X)[2]
   X <- chol(theta)%*%X
-  
   test.temp <- (X - X%*%bmle)%*%diag(1/sqrt(omgmle))
   test.res <- apply(test.temp,2,tcrossprod)
   S <- matrix(rowSums(test.res),n,n)
   tracetrm <- sum(diag(S))
-  
   loglikelihood <- n*sum(log(omgmle)) - p*log(det(theta)) + tracetrm
   fn <- log(max(n,p)) * s0
   BIC <- loglikelihood + fn
@@ -515,7 +513,7 @@ get_lam_path <- function(p, XX, rho.est, lambda.len, div=100){
   lambda.max <- rep(0, p)
   for(i in 1:(p-1)) lambda.max[i+1] <- norm(2*t(XX[,1:i])%*%(XX[,i+1]*rho.est[i+1]), type = "i")
   lambda.max <- max(lambda.max)
-  lambda.path <- lseq(lambda.max/div, lambda.max/2, lambda.len)
+  lambda.path <- lseq(lambda.max/div, lambda.max/5, lambda.len)
   return(lambda.path)
 }
 
