@@ -541,6 +541,21 @@ get_Xdecor <- function(Xp){
 }
 
 
+sparsebn_sol <- function(X, decor=F){
+  sbX <- sparsebnData(X, type = "continuous")
+  sb_path <- estimate.dag(sbX)
+  sol_idx <- select.parameter(sb_path, sbX)
+  sol_base <- select(sb_path, index = sol_idx)
+  adjmat_sbbase <- get.adjacency.matrix(sol_base) %>% as.matrix()
+  if(decor){
+    saveRDS(adjmat_sbbase, file = 'adjmat_sparsebn_CPDAG_decor.rds')
+  }
+  else{
+    saveRDS(adjmat_sbbase, file = 'adjmat_sparsebn_CPDAG.rds')  
+  }
+}
+
+
 sim_newalgo_unordered <- function(
   args, 
   estimands, 
@@ -564,6 +579,7 @@ sim_newalgo_unordered <- function(
     # Other methods -----------------------------------------------------------
     GES_sol(Xp, decor = F)
     pc_sol(Xp, decor = F)
+    sparsebn_sol(Xp, decor = F)
     # NetworkDAG --------------------------------------------------------------
     networkDAG_sol_path(
       X = Xp, 
@@ -576,6 +592,7 @@ sim_newalgo_unordered <- function(
     Xdecor <- get_Xdecor(Xp)
     GES_sol(Xdecor, decor = T)
     pc_sol(Xdecor, decor = T)
+    sparsebn_sol(Xdecor, decor = T)
     setwd("~/Documents/research/dag_network")  
   }
 }
@@ -607,11 +624,21 @@ get_shd_unordered <- function(
     file = paste0(simID, '--', sim, '/adjmat_fges_CPDAG_decor.rds'))
   shd_ges <- unlist(compute_SHD_detail(adjmat_fges_CPDAG, bstar_adj, s0))
   shd_ges_decor <- unlist(compute_SHD_detail(adjmat_fges_CPDAG_decor, bstar_adj, s0))
+  # get sparsebn shd --------------------------------------------------------
+  adjmat_sparsebn_CPDAG <- readRDS(
+    file = paste0(simID, '--', sim, '/adjmat_sparsebn_CPDAG.rds'))
+  adjmat_sparsebn_CPDAG_decor <- readRDS(
+    file = paste0(simID, '--', sim, '/adjmat_sparsebn_CPDAG_decor.rds'))
+  shd_sbn <- unlist(compute_SHD_detail(adjmat_sparsebn_CPDAG, bstar_adj, s0))
+  shd_sbn_decor <- unlist(compute_SHD_detail(adjmat_sparsebn_CPDAG_decor, bstar_adj, s0))
+  
   output_unordered$shdXmain=shdXmain
   output_unordered$shd_pc=shd_pc
   output_unordered$shd_pc_decor=shd_pc_decor
   output_unordered$shd_ges=shd_ges
   output_unordered$shd_ges_decor=shd_ges_decor
+  output_unordered$shd_sbn=shd_sbn
+  output_unordered$shd_sbn_decor=shd_sbn_decor
   return(output_unordered)
 }
 
