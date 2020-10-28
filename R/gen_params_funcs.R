@@ -49,11 +49,12 @@ load_settings <- function(){
   
 }
 
-generate_parameters <- function(args, 
-                                seed = 10, 
-                                bname = NULL, 
-                                btype = NULL, 
-                                theta_name = NULL
+generate_parameters <- function(
+  args, 
+  seed = 10, 
+  bname = NULL, 
+  btype = NULL, 
+  theta_name = NULL
 ){
   if(args$bchoice == "y") {
     cat("B was generated from data. \n")
