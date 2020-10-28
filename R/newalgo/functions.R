@@ -472,7 +472,9 @@ get_average_shd_unordered <- function(simID, nsim){
     shd_pc = rep(0, num_statistic),
     shd_pc_decor=rep(0, num_statistic),
     shd_ges=rep(0, num_statistic),
-    shd_ges_decor=rep(0, num_statistic)
+    shd_ges_decor=rep(0, num_statistic),
+    shd_sbn=rep(0, num_statistic),
+    shd_sbn_decor=rep(0, num_statistic)
   )
   for (sim in 1:nsim){
     allshd <- as.data.frame(
@@ -643,12 +645,11 @@ get_shd_unordered <- function(
 }
 
 
-process_output_unordered <- function(simID = simID, thr = 0.1){
+process_output_unordered <- function(simID = simID, nsim, thr = 0.1){
   setwd(paste0('output/', simID))
-  args <- readRDS('args.rds')
   estimands <- readRDS('estimands.rds')
   bstar_adj_cpdag <- bnstruct::dag.to.cpdag(1*(estimands$b != 0)) 
-  for(sim in 1:args$num_sim){
+  for(sim in 1:nsim){
     cat(paste0('[INFO] Processing sim ', sim, '\n'))
     BICscores_main <- readRDS(paste0(simID, '--', sim, '/BICscores_main.rds'))  
     bestk_bic_main <- which.min(BICscores_main)
