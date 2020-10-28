@@ -15,22 +15,17 @@ image(as(estimands$b, class(estimands$theta)))
 estimands$b[estimands$b!=0] %>% as.numeric() %>% hist(breaks=20)
 saveRDS(estimands, file = paste0('output/', args$setting, "/estimands.rds"))
 # run simulation ----------------------------------------------------------
+# ordered 
 setwd("~/Documents/research/dag_network")
+simID <- args$setting
 sim_newalgo_ordered(args, estimands, start_sim=1, end_sim=args$num_sim, lamLen=15)
-process_output_ordered(simID='003', thr = 0.1)
-get_all_shd_ordered(simID = '003', estimands = estimands, num_sim = args$num_sim)
-get_average_shd(simID = '003', nsim = as.numeric(args$num_sim))
+process_output_ordered(simID = simID, thr = 0.1)
+get_all_shd_ordered(simID = simID, estimands, args$num_sim)
+get_average_shd_ordered(simID = simID, nsim = as.numeric(args$num_sim))
 
-
-
-
-
-sim_newalgo_unordered <- function(
-  args, 
-  estimands, 
-  start_sim=1, 
-  end_sim=args$num_sim, 
-  lamLen=15){
-  
-  
-}
+# unordered 
+setwd("~/Documents/research/dag_network")
+simID <- args$setting
+sim_newalgo_unordered(args, estimands, start_sim=1, end_sim=10, lamLen=15)
+process_output_unordered(simID = simID, thr = 0.1)
+get_average_shd_unordered(simID = simID, nsim = as.numeric(args$num_sim))
