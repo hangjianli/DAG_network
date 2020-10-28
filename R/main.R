@@ -1,5 +1,5 @@
 rm(list = ls())
-# setwd("~/Documents/research/dag_network/R")
+setwd("~/Documents/research/dag_network/")
 source("R/loadpackages.R")
 # helper functions --------------------------------------------------------
 source("R/helper_funcs.R")
@@ -19,22 +19,17 @@ source('R/unordered_sims.R')
 source("R/main_iteration_fast2.R")
 source("R/ordered_sims.R")
 source("R/ordered_sims_new.R")
-
-
-p = 10
-n = 5
-omgTrue <- gen.omg(p = p, iid = T)
-bTrue <- genB(p = p, nEdges = 1.5*p)
-sigTrue <- genTheta
+source("R/newalgo/functions.R")
 
 
 # GES ---------------------------------------------------------------------
 args <- args_for_parameter()  
 dir.create(path = paste0('output/', args$setting))
-saveRDS(args, file = paste0('~/Documents/research/dag_network/output/', args$setting, "/args.rds"))
-
-estimands <- generate_parameters(args = args, seed = 1, bname = "hailfinder",
-                                 btype = "discrete", theta_name = "USairport500")
+saveRDS(args, file = paste0('output/', args$setting, "/args.rds"))
+estimands <- generate_parameters(args = args, seed = 1, 
+                                 # bname = "hailfinder",
+                                 # btype = "discrete", theta_name = "USairport500"
+                                 )
                                  # theta_name = "USairport500",
                                  # bname = "pathfinder", btype = "discrete")
 image(estimands$theta)
@@ -46,13 +41,8 @@ estimands$b[estimands$b!=0] %>% as.numeric() %>% hist(breaks=20)
 saveRDS(estimands, file = paste0('output/', args$setting, "/estimands.rds"))
 # run sims ----------------------------------------------------------------
 ordered_runsims_new(start = 2, 2, args, estimands, max.iter = 100, lam_div = 40)
-
-
-
 unordered_runsims(start_pos = 1, repp = 10, args, estimands, thr = 0.3,
                   max.iter = 20, lambda.len = 10, div = 120)
-
-
 
 settings <- c("072620", "072630", "072640", "072650", "072660")
 for(i in 1:length(settings)){
