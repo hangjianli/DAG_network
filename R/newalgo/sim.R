@@ -27,5 +27,5 @@ get_average_shd_ordered(simID = simID, nsim = as.numeric(args$num_sim))
 setwd("~/Documents/research/dag_network")
 simID <- args$setting
 sim_newalgo_unordered(args, estimands, start_sim=1, end_sim=10, lamLen=15)
-process_output_unordered(simID = simID, thr = 0.1)
+process_output_unordered(simID = simID, thr = 0.1, nsim = args$num_sim)
 get_average_shd_unordered(simID = simID, nsim = as.numeric(args$num_sim))
