@@ -513,7 +513,7 @@ get_lam_path <- function(p, XX, rho.est, lambda.len, div=100){
   lambda.max <- rep(0, p)
   for(i in 1:(p-1)) lambda.max[i+1] <- norm(2*t(XX[,1:i])%*%(XX[,i+1]*rho.est[i+1]), type = "i")
   lambda.max <- max(lambda.max)
-  lambda.path <- lseq(lambda.max/div, lambda.max/5, lambda.len)
+  lambda.path <- lseq(lambda.max/div, lambda.max/10, lambda.len)
   return(lambda.path)
 }
 
