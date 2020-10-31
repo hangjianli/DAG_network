@@ -1,4 +1,4 @@
-run_bcd <- function(
+ run_bcd <- function(
   X, 
   block_size,
   estimands,
@@ -22,23 +22,28 @@ run_bcd <- function(
   diff_beta <- 1
   diff_theta <- 1
   iter <- 0
+  loss_his <- vector(length = maxIter)
   while((diff_beta > tol || diff_theta > tol) && iter < maxIter){
     bhat <- estimate_b(
       n = n, p = p, X = X,
       theta_hat = thetahat,
       lambda= rep(lambda1, p)
     )
+    if(iter == 0)
+      bhat_oneiter <- bhat
     S <- get_sample_cov(X, sqrt(omega2_hat_iid), bhat)
-    if(baseline_flag){
-      cat(paste0("[INFO] Assume no row-wise correlations. \n"))
-      return(list(bhat=bhat, thetahat=thetahat))
-    }
+    # if(baseline_flag){
+    #   cat(paste0("[INFO] Assume no row-wise correlations. \n"))
+    #   return(list(bhat=bhat))
+    # }
     thetahat <- estimate_theta(
       S = S, p = p, lambda2 = lambda2,
       num_blocks = num_blocks,
       block_size = block_size,
       zeropos_list = zeropos_list
     )
+    if(iter == 0)
+      thetahat_oneiter <- thetahat
     err_beta <- norm(estimands$b - bhat, type = '2')^2 / p^2 
     err_theta <- norm(estimands$theta - thetahat, type = '2')^2 / n^2
     curloss <- eval_loss_func(X, sqrt(omega2_hat_iid), bhat, thetahat, S, lambda1, lambda2)
@@ -49,18 +54,25 @@ run_bcd <- function(
     cat(paste0('[INFO] diff_beta: ', round(diff_beta, 7), "\n"))
     cat(paste0('[INFO] diff_theta: ', round(diff_theta, 7), "\n"))
     cat(paste0("---------------------------------------------","\n"))
-    diff_beta <- norm(bhat - old_hbeta, type = 'f') / p^2
-    diff_theta <- norm(thetahat - old_htheta, type = 'f') / n^2
+    diff_beta <- norm(bhat - old_hbeta, type = 'f')^2 / p^2
+    diff_theta <- norm(thetahat - old_htheta, type = 'f')^2 / n^2
     old_hbeta <- bhat
     old_htheta <- thetahat
     iter <- iter + 1
+    loss_his[iter] <- curloss
     Sys.sleep(0.01)
     flush.console()
   }
-  cat(paste0('[INFO] diff_beta: ', round(diff_beta, 7), "\n"))
-  cat(paste0('[INFO] diff_theta: ', round(diff_theta, 7), "\n"))
+  # cat(paste0('[INFO] diff_beta: ', round(diff_beta, 7), "\n"))
+  # cat(paste0('[INFO] diff_theta: ', round(diff_theta, 7), "\n"))
   dimnames(bhat) <- list(dimnames(X)[[2]], dimnames(X)[[2]])
-  return(list(bhat=bhat, thetahat=thetahat))
+  return(list(
+    bhat=bhat, 
+    thetahat=thetahat,
+    bhat_oneiter=bhat_oneiter,
+    thetahat_oneiter=thetahat_oneiter,
+    losses=loss_his[loss_his!=0]
+  ))
 }
 
 get_sample_cov <- function(
@@ -192,7 +204,7 @@ networkDAG_sol_path <- function(
   for(k in 1:length(lambda.path)){
     set.seed(1)
     cat(paste0("===============================================================","\n"))
-    cat(paste0('[INFO] Lambda k: ', k, "\n"))
+    cat(paste0('[INFO] Lambda k =', k, "\n"))
     res <- run_bcd(
       X = X, 
       block_size = block_size,
@@ -223,9 +235,9 @@ networkDAG_sol_path <- function(
       theta = res$thetahat
     )
     BICscores_main[k] <- BIC_result$BIC
-    saveRDS(BICscores_main, "BICscores_main.rds")
-    saveRDS(minrowcor_main, "minrowcor_main.rds")
   }
+  saveRDS(BICscores_main, "BICscores_main.rds")
+  saveRDS(minrowcor_main, "minrowcor_main.rds")
 }
 
 bench_sol_path <- function(
@@ -307,8 +319,8 @@ sim_newalgo_ordered <- function(
     )
     bench_sol_path(
       X = X,
-      block_size=args$block_size, 
-      estimands = estimands, 
+      block_size=args$block_size,
+      estimands = estimands,
       lambda_len = lamLen
     )
     setwd("~/Documents/research/dag_network")
@@ -415,17 +427,21 @@ get_all_shd_ordered <- function(
         kbenchcor = bestk_cor_baseline,
         sim = sim,
         simID = simID,
-        bstar_adj, 
-        estimands, 
+        bstar_adj = bstar_adj, 
+        s0 = estimands$s0, 
         thresh = thrs[j]
       )
     }
-    bestbench <- which.min(sapply(
+    bestbenchBIC <- which.min(sapply(
       allShdS, 
       function(x) abs(x$shdXbaseline['pnum'] - allshd$shdXmain['pnum'])
     ))
-    allshd$shdXbaseline <- allShdS[[bestbench]]$shdXbaseline
-    allshd$shdXbaselineCor <- allShdS[[bestbench]]$shdXbaselineCor
+    bestbenchCor <- which.min(sapply(
+      allShdS, 
+      function(x) abs(x$shdXbaselineCor['pnum'] - allshd$shdXmainCor['pnum'])
+    ))
+    allshd$shdXbaseline <- allShdS[[bestbenchBIC]]$shdXbaseline
+    allshd$shdXbaselineCor <- allShdS[[bestbenchCor]]$shdXbaselineCor
     saveRDS(allshd, paste0(simID, "--", sim, "/SHDclose.rds"))
     cat("[INFO] Sim ", sim, "is done. \n")
     setwd("~/Documents/research/dag_network")
@@ -521,7 +537,8 @@ pc_sol <- function(X, decor=F){
   res_pc <- pcalg::pc(
     suffStat = suffstat, 
     indepTest = gaussCItest, 
-    alpha = 0.05, 
+    alpha = 0.05,
+    m.max = 5,
     labels = dimnames(X)[[2]]
   )
   adjmat_pc_CPDAG <- as(res_pc, "amat")
@@ -579,8 +596,11 @@ sim_newalgo_unordered <- function(
     saveRDS(X_, file = "X.rds")
     saveRDS(XXp, file = "Xp.rds")
     # Other methods -----------------------------------------------------------
+    cat('[INFO] Running GES... \n')
     GES_sol(Xp, decor = F)
+    cat('[INFO] Running PC... \n')
     pc_sol(Xp, decor = F)
+    cat('[INFO] Running sparsebn... \n')
     sparsebn_sol(Xp, decor = F)
     # NetworkDAG --------------------------------------------------------------
     networkDAG_sol_path(
