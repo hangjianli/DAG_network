@@ -1,7 +1,7 @@
  run_bcd <- function(
   X, 
   block_size,
-  estimands,
+  # estimands,
   zeropos_list,
   baseline_flag=FALSE,
   lambda1=1, 
@@ -44,13 +44,13 @@
     )
     if(iter == 0)
       thetahat_oneiter <- thetahat
-    err_beta <- norm(estimands$b - bhat, type = '2')^2 / p^2 
-    err_theta <- norm(estimands$theta - thetahat, type = '2')^2 / n^2
+    # err_beta <- norm(estimands$b - bhat, type = '2')^2 / p^2 
+    # err_theta <- norm(estimands$theta - thetahat, type = '2')^2 / n^2
     curloss <- eval_loss_func(X, sqrt(omega2_hat_iid), bhat, thetahat, S, lambda1, lambda2)
     cat(paste0('[INFO] Iter: ', iter, "\n"))
     cat(paste0('[INFO] Loss: ', round(curloss, 7), "\n"))
-    cat(paste0('[INFO] err_beta: ', round(err_beta,7), "\n"))
-    cat(paste0('[INFO] err_theta: ', round(err_theta,7), "\n"))
+    # cat(paste0('[INFO] err_beta: ', round(err_beta,7), "\n"))
+    # cat(paste0('[INFO] err_theta: ', round(err_theta,7), "\n"))
     cat(paste0('[INFO] diff_beta: ', round(diff_beta, 7), "\n"))
     cat(paste0('[INFO] diff_theta: ', round(diff_theta, 7), "\n"))
     cat(paste0("---------------------------------------------","\n"))
@@ -211,7 +211,7 @@ networkDAG_sol_path <- function(
       zeropos_list = estimands$zeropos_list,
       lambda1 = lambda.path[k],
       lambda2 = .001,
-      estimands = estimands, 
+      # estimands = estimands, 
       maxIter = maxIter,
       tol = 1e-7)
     # check if max degree s < n
@@ -263,7 +263,7 @@ bench_sol_path <- function(
       zeropos_list = estimands$zeropos_list,
       lambda1 = lambda.path[k],
       lambda2 = .001,
-      estimands = estimands, 
+      # estimands = estimands, 
       maxIter = maxIter,
       tol = 1e-7)
     
