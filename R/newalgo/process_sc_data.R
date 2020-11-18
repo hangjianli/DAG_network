@@ -30,3 +30,18 @@ sig_genes_log_val <- sig_genes_log[, -1] %>% as.matrix()
 dimnames(sig_genes_log_val)[[1]] <- sig_genes$geneID
 
 saveRDS(sig_genes_log_val, "data/sig_genes_log_val.rds")
+
+
+
+
+Xp <- readRDS(file = "data/sig_genes_log_val.rds")
+dir.create(path = "output/single_cell")
+setwd(dir = "output/single_cell")
+
+networkDAG_sol_path(
+  X = Xp, 
+  block_size=args$block_size, 
+  estimands = estimands, 
+  lambda_len = lamLen,
+  maxIter = 100
+)
