@@ -34,25 +34,80 @@ get_average_shd_unordered(simID = simID, nsim = as.numeric(args$num_sim))
 
 # single cell data --------------------------------------------------------
 
-
-
 setwd("~/Documents/research/dag_network/")
 sc_block_idx_full <- readRDS("data/single_cell_data/single_cell_block_idx_full.rds")
-Xp <- readRDS(file = "data/single_cell_data/sig_genes_log_val.rds")
-dir.create(path = "output/single_cell5")
-setwd(dir = "output/single_cell5")
-Xp <- t(Xp)
+# Xp <- readRDS(file = "data/single_cell_data/sig_genes_log_val.rds")
+dir.create(path = "output/single_cell02")
+setwd(dir = "output/single_cell")
+Xp <- t(goodgene_2k)
 Xp %>% dim()
 set.seed(2)
 # randomly sample 20 cells from each cell type and merge the indices
 res <- sample_sc_data(
   full_log_vals = Xp, 
   full_idx = sc_block_idx_full,
-  size = c(20,20,20,10,15,15,5),
+  size = c(20,20,20,10,15,15,15),
   seed = 4
 )
+res$subsetXp %>% dim()
 saveRDS(res, "sc_subsampled.rds")
-block_idx <- get_cell_block_idx(cellnames = res$cellnames)
+
+
+
+# hierarchical clustering here---------------------------------------------
+num_blocks = 5
+res$subsetXp %>% dim()
+
+outsidedata <- othergenes[rownames(othergenes) %in% rownames(res$subsetXp), ]
+
+d <- dist(scale(outsidedata), method = "euclidean")
+hc1 <- hclust(d, method = "complete" )
+plot(hc1, cex = 0.6, hang = -1)
+sub_grp <- cutree(hc1, k = num_blocks)
+table(sub_grp)
+if(any(table(sub_grp) == 1)){
+  warnings('Too many blocks!')
+}
+block_idx = vector(mode = 'list', length = num_blocks)
+for(i in 1:num_blocks){
+  block_idx[[i]] = which(sub_grp == i)
+}
+
+# get the block index -----------------------------------------------------
+# block_idx <- get_cell_block_idx(cellnames = res$cellnames)
+
+
+# 
+# sum(sapply(block_idx, length) <= 2)
+# 
+# block_idx2 = vector(mode = 'list')
+# 
+# i = 1
+# zeropos_list <- matrix(0, dimnames = list(NULL, c('row', 'col')), ncol = 2)
+# newblock = c()
+# for(j in 1:k){
+#   if(length(block_idx[[j]]) > 2){
+#     block_idx2[[i]] = block_idx[[j]]
+#     i <- i + 1
+#   }else{
+#     newblock <- c(newblock, block_idx[[j]])
+#     zeropos_list <- rbind(zeropos_list, )
+#   }
+# }
+
+
+
+
+
+# combine small blocks -----------------------------------------------------
+
+
+
+# correct_order <- match(rownames(res$subsetXp), names(unlist(block_idx)))
+
+
+# test_mat <- matrix(1:16, 4, 4)
+# dimnames(test_mat) <- list(1:4, 1:4)
 networkDAG_sol_path(
   X = res$subsetXp, 
   block_size=20, 
