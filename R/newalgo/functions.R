@@ -21,6 +21,14 @@
   diff_theta <- 1
   iter <- 0
   loss_his <- vector(length = maxIter)
+  
+  correct_order = NULL
+  if (!is.null(block_idx)){
+    correct_order <- match(rownames(X), names(unlist(block_idx)))
+    # paste0('[INFO] Iter: ', iter, "\n"))
+    # cat(rownames(X), names(unlist(block_idx)) )  
+  }
+  
   while((diff_beta > tol || diff_theta > tol) && iter < maxIter){
     bhat <- estimate_b(
       n = n, p = p, X = X,
@@ -33,7 +41,8 @@
       lambda2 = lambda2,
       block_size = block_size,
       zeropos_list = zeropos_list,
-      block_idx = block_idx
+      block_idx = block_idx,
+      correct_order=correct_order
     )
     # err_beta <- norm(estimands$b - bhat, type = '2')^2 / p^2 
     # err_theta <- norm(estimands$theta - thetahat, type = '2')^2 / n^2
@@ -122,7 +131,8 @@ estimate_theta <- function(
   lambda2, # this should be chosen by grid search
   block_size,
   block_idx=NULL,
-  zeropos_list,
+  zeropos_list=NULL,
+  correct_order=NULL,
   seed=1
 ){
   n <- dim(S)[1]
@@ -138,6 +148,7 @@ estimate_theta <- function(
       zeros = zeropos_list[[i]]
       if(is.null(zeros) || dim(zeros)[1] == 0)
         zeros = NULL
+      cat('[INFO] i ', i)
       temp_sig <- glasso(s = S[block_idx[[i]], block_idx[[i]]],
                          thr = 1.0e-7,
                          rho = lambda2/p,
@@ -161,6 +172,9 @@ estimate_theta <- function(
     }    
   }
   sig.est <- as.matrix(do.call(bdiag, sig.blocks))
+  if(!is.null(correct_order)){
+    sig.est <- sig.est[correct_order, correct_order]    
+  }
   theta_est <- solve(sig.est)
   return(theta_est)
 }
@@ -755,6 +769,8 @@ sample_sc_data <- function(
 }
 
 get_cell_block_idx <- function(cellnames){
+  #' Return a list where each element is a vector of row indices belonging to the same block/cluster
+  #' 
   unique_cell <- unique(cellnames)
   cellname_idx <- numeric(length = length(unique_cell))
   for(i in 1:length(unique_cell)){
