@@ -148,7 +148,7 @@ estimate_theta <- function(
       zeros = zeropos_list[[i]]
       if(is.null(zeros) || dim(zeros)[1] == 0)
         zeros = NULL
-      cat('[INFO] i ', i)
+      # cat('[INFO] i ', i)
       temp_sig <- glasso(s = S[block_idx[[i]], block_idx[[i]]],
                          thr = 1.0e-7,
                          rho = lambda2/p,
@@ -608,15 +608,20 @@ pc_sol <- function(X, decor=F){
   }
 }
 
-get_Xdecor <- function(Xp){
+get_Xdecor <- function(Xp, best_bic_predefined = NULL){
   bic_score <- readRDS('BICscores_main.rds')
   bic_score_1iter <- readRDS('BICscores_1iter_main.rds')
   best_bic <- which.min(bic_score)
   best_bic_1iter <- which.min(bic_score_1iter)
   cat('[INFO] lambda index for the best BIC: ',
       best_bic, "|", paste0(best_bic_1iter, " (1iter)"),"\n")
-  best_res <- readRDS(paste0('main_lam_', best_bic, '.rds'))
-  best_res_1iter <- readRDS(paste0('main_lam_', best_bic_1iter, '.rds'))
+  if(!is.null(best_bic_predefined)){
+    best_res <- readRDS(paste0('main_lam_', best_bic_predefined, '.rds'))
+    best_res_1iter <- readRDS(paste0('main_lam_', best_bic_predefined, '.rds'))  
+  }else{
+    best_res <- readRDS(paste0('main_lam_', best_bic, '.rds'))
+    best_res_1iter <- readRDS(paste0('main_lam_', best_bic_1iter, '.rds'))  
+  }
   X_decor <- chol(best_res$thetahat) %*% Xp
   X_decor_1iter <- chol(best_res_1iter$thetahat) %*% Xp
   dimnames(X_decor) <- dimnames(Xp)
@@ -627,7 +632,7 @@ get_Xdecor <- function(Xp){
 
 sparsebn_sol <- function(X, decor=F){
   sbX <- sparsebnData(X, type = "continuous")
-  sb_path <- estimate.dag(sbX)
+  sb_path <- estimate.dag(sbX, verbose = T)
   sol_idx <- select.parameter(sb_path, sbX)
   sol_base <- select(sb_path, index = sol_idx)
   adjmat_sbbase <- get.adjacency.matrix(sol_base) %>% as.matrix()
@@ -784,12 +789,26 @@ get_cell_block_idx <- function(cellnames){
   return(block_idx)
 }
 
-plot_cpdag <- function(cpdag){
+plot_cpdag <- function(cpdag, rescale = T){
   idx <- which(cpdag !=0, arr.ind=T)
   edgelist <- cbind(rownames(cpdag)[idx[,"row"]], colnames(cpdag)[idx[,"col"]])
   g <- graph_from_edgelist(edgelist)
-  plot(g, edge.arrow.size=0.5, vertex.size=5, 
-       vertex.label.dist=1.5,
-       label.cex=.1)
+  # V(g)$label.cex = 
+  if(rescale){
+    plot(g, 
+         # layout = layout.fruchterman.reingold,
+         edge.arrow.size=0.3, vertex.size=0.1, 
+         vertex.label.dist=0.2,
+         vertex.label.cex = 0.6)
+  }else{
+    plot(g, 
+         rescale = rescale,
+         asp = 0,
+         ylim=c(-25,25),xlim=c(-30,30),
+         # layout = layout.fruchterman.reingold,
+         edge.arrow.size=0.3, vertex.size=0.1, 
+         vertex.label.dist=0.2,
+         vertex.label.cex = 0.6)
+  }
 }
 

@@ -37,9 +37,9 @@ get_average_shd_unordered(simID = simID, nsim = as.numeric(args$num_sim))
 setwd("~/Documents/research/dag_network/")
 sc_block_idx_full <- readRDS("data/single_cell_data/single_cell_block_idx_full.rds")
 # Xp <- readRDS(file = "data/single_cell_data/sig_genes_log_val.rds")
-dir.create(path = "output/single_cell02")
-setwd(dir = "output/single_cell")
-Xp <- t(goodgene_2k)
+dir.create(path = "output/single_cell03")
+setwd(dir = "output/single_cell01")
+Xp <- t(goodgene)
 Xp %>% dim()
 set.seed(2)
 # randomly sample 20 cells from each cell type and merge the indices
@@ -49,6 +49,7 @@ res <- sample_sc_data(
   size = c(20,20,20,10,15,15,15),
   seed = 4
 )
+res <- Xp
 res$subsetXp %>% dim()
 saveRDS(res, "sc_subsampled.rds")
 
@@ -56,13 +57,14 @@ saveRDS(res, "sc_subsampled.rds")
 
 # hierarchical clustering here---------------------------------------------
 num_blocks = 5
-res$subsetXp %>% dim()
+# res$subsetXp %>% dim()
 
-outsidedata <- othergenes[rownames(othergenes) %in% rownames(res$subsetXp), ]
+# outsidedata <- othergenes[rownames(othergenes) %in% rownames(res$subsetXp), ]
+outsidedata <- othergenes[rownames(othergenes) %in% rownames(res), ]
 
 d <- dist(scale(outsidedata), method = "euclidean")
-hc1 <- hclust(d, method = "complete" )
-plot(hc1, cex = 0.6, hang = -1)
+hc1 <- hclust(d, method = "complete")
+# plot(hc1, cex = 0.6, hang = -1)
 sub_grp <- cutree(hc1, k = num_blocks)
 table(sub_grp)
 if(any(table(sub_grp) == 1)){
@@ -109,7 +111,8 @@ for(i in 1:num_blocks){
 # test_mat <- matrix(1:16, 4, 4)
 # dimnames(test_mat) <- list(1:4, 1:4)
 networkDAG_sol_path(
-  X = res$subsetXp, 
+  # X = res$subsetXp, 
+  X = Xp,
   block_size=20, 
   zeropos_list = NULL,
   block_idx = block_idx,
@@ -121,9 +124,9 @@ Xdecor_res <- get_Xdecor(res$subsetXp)
 GES_sol(res$subsetXp, decor = F)
 GES_sol(Xdecor_res$X_decor, decor = T)
 # GES_sol(Xdecor_res$X_decor_1iter, decor = T)
-pc_sol(Xdecor$X_decor, decor = T)
+pc_sol(Xdecor_res$X_decor, decor = T)
 pc_sol(res$subsetXp, decor = F)
-sparsebn_sol(Xdecor$X_decor, decor = T)
+sparsebn_sol(Xdecor_res$X_decor, decor = T)
 sparsebn_sol(res$subsetXp, decor = F)
 fgesdag <- readRDS("adjmat_fges_CPDAG_decor.rds")
 fgesdag_original <- readRDS("adjmat_fges_CPDAG.rds")
@@ -137,7 +140,7 @@ plot_cpdag(fgesdag)
 plot_cpdag(pcdag_original)
 plot_cpdag(pcdag)
 plot_cpdag(sbndag_original)
-plot_cpdag(sbndag)
+plot_cpdag(sbndag,rescale = T)
 
 
 
