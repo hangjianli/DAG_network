@@ -34,30 +34,12 @@ get_average_shd_unordered(simID = simID, nsim = as.numeric(args$num_sim))
 
 # single cell data --------------------------------------------------------
 
-setwd("~/Documents/research/dag_network/")
-sc_block_idx_full <- readRDS("data/single_cell_data/single_cell_block_idx_full.rds")
-# Xp <- readRDS(file = "data/single_cell_data/sig_genes_log_val.rds")
-dir.create(path = "output/single_cell03")
-setwd(dir = "output/single_cell01")
-Xp <- t(goodgene)
-Xp %>% dim()
-set.seed(2)
-# randomly sample 20 cells from each cell type and merge the indices
-res <- sample_sc_data(
-  full_log_vals = Xp, 
-  full_idx = sc_block_idx_full,
-  size = c(20,20,20,10,15,15,15),
-  seed = 4
-)
-res <- Xp
-res$subsetXp %>% dim()
-saveRDS(res, "sc_subsampled.rds")
 
 
 
 # hierarchical clustering here---------------------------------------------
 num_blocks = 5
-# res$subsetXp %>% dim()
+res$subsetXp %>% dim()
 
 # outsidedata <- othergenes[rownames(othergenes) %in% rownames(res$subsetXp), ]
 outsidedata <- othergenes[rownames(othergenes) %in% rownames(res), ]
@@ -74,9 +56,6 @@ block_idx = vector(mode = 'list', length = num_blocks)
 for(i in 1:num_blocks){
   block_idx[[i]] = which(sub_grp == i)
 }
-
-# get the block index -----------------------------------------------------
-# block_idx <- get_cell_block_idx(cellnames = res$cellnames)
 
 
 # 
@@ -98,61 +77,18 @@ for(i in 1:num_blocks){
 # }
 
 
-
-
-
-# combine small blocks -----------------------------------------------------
-
-
-
-# correct_order <- match(rownames(res$subsetXp), names(unlist(block_idx)))
-
-
 # test_mat <- matrix(1:16, 4, 4)
 # dimnames(test_mat) <- list(1:4, 1:4)
 networkDAG_sol_path(
-  # X = res$subsetXp, 
-  X = Xp,
+  X = res$subsetXp,
+  # X = Xp,
   block_size=20, 
   zeropos_list = NULL,
-  block_idx = block_idx,
+  block_idx = res$block_idx,
   lambda_len = 10,
   maxIter = 100
 )
-Xdecor_res <- get_Xdecor(res$subsetXp)
 
-GES_sol(res$subsetXp, decor = F)
-GES_sol(Xdecor_res$X_decor, decor = T)
-# GES_sol(Xdecor_res$X_decor_1iter, decor = T)
-pc_sol(Xdecor_res$X_decor, decor = T)
-pc_sol(res$subsetXp, decor = F)
-sparsebn_sol(Xdecor_res$X_decor, decor = T)
-sparsebn_sol(res$subsetXp, decor = F)
-fgesdag <- readRDS("adjmat_fges_CPDAG_decor.rds")
-fgesdag_original <- readRDS("adjmat_fges_CPDAG.rds")
-pcdag <- readRDS("adjmat_pc_CPDAG_decor.rds")
-pcdag_original <- readRDS("adjmat_pc_CPDAG.rds")
-sbndag <- readRDS("adjmat_sparsebn_CPDAG_decor.rds")
-sbndag_original <- readRDS("adjmat_sparsebn_CPDAG.rds")
-
-plot_cpdag(fgesdag_original)
-plot_cpdag(fgesdag)
-plot_cpdag(pcdag_original)
-plot_cpdag(pcdag)
-plot_cpdag(sbndag_original)
-plot_cpdag(sbndag,rescale = T)
-
-
-
-bic_score <- readRDS('BICscores_main.rds')
-best_res <- readRDS(paste0('main_lam_', best_bic, '.rds'))
-bstar_adj_cpdag <- bnstruct::dag.to.cpdag(1*(best_res$bhat != 0)) 
-which(best_res$bhat != 0, arr.ind = T)
-plot_cpdag(best_res$bhat)
-plot_cpdag(best_res$bhat_1iter)
-
-
-which(best_res$bhat[, 'POU5F1'] != 0)
 
 # 
 # X: num cells x num genes
