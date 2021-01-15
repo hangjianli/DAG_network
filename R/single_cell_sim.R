@@ -6,7 +6,7 @@ idx_goodgene <- apply(sig_genes_log_val, 1, function(x) sd(x)/abs(mean(x)) > 0.2
 goodgene <- sig_genes_log_val[idx_goodgene,]
 goodgene %>% dim()
 set.seed(12)
-othergenes <- sample_n(as.data.frame(goodgene[1:7000,]), 500) %>% as.matrix() %>% t()
+othergenes <- sample_n(as.data.frame(goodgene[1:7000,]), 2000) %>% as.matrix() %>% t()
 
 
 
@@ -16,8 +16,6 @@ for(i in 1:length(sc_block_idx_full)){
   names(sc_block_idx_full[[i]]) <- colnames(targetgene)[sc_block_idx_full[[i]]]
 }
 # Xp <- readRDS(file = "data/single_cell_data/sig_genes_log_val.rds")
-dir.create(path = "output/single_cell11")
-setwd(dir = "output/single_cell11")
 Xp <- t(targetgene)
 Xp %>% dim()
 # randomly sample 20 cells from each cell type and merge the indices
@@ -35,8 +33,8 @@ saveRDS(res, "sc_subsampled.rds")
 # clustering --------------------------------------------------------------
 d <- dist(scale(othergenes), method = "euclidean")
 hc1 <- hclust(d, method = "complete")
-plot(hc1, cex = 0.6, hang = -1)
-sub_grp <- cutree(hc1, h=60)
+# plot(hc1, cex = 0.6, hang = -1)
+sub_grp <- cutree(hc1, h=80)
 sub_grp %>% table()
 sub_grp_subset <- sub_grp[!(sub_grp %in%  which(table(sub_grp) ==1))]
 sub_grp_subset %>% table()
@@ -54,7 +52,7 @@ sub_grp_subset %>% length()
 # }
 
 
-# targetgene <- t(targetgene)
+targetgene <- t(targetgene)
 targetgene %>% dim()
 res <- reorder_data(sub_grp_subset = sub_grp_subset, targetgene = targetgene)
 res$df %>% dim()
@@ -64,6 +62,10 @@ res$block_idx %>% length()
 
 
 # run sim -----------------------------------------------------------------
+
+dir.create(path = "output/single_cell13")
+setwd(dir = "output/single_cell13")
+
 networkDAG_sol_path(
   # X = res$subsetXp,
   X = res$df,
