@@ -22,12 +22,12 @@
   iter <- 0
   loss_his <- vector(length = maxIter)
   
-  correct_order = NULL
-  if (!is.null(block_idx)){
-    correct_order <- match(rownames(X), names(unlist(block_idx)))
-    # paste0('[INFO] Iter: ', iter, "\n"))
-    # cat(rownames(X), names(unlist(block_idx)) )  
-  }
+  # correct_order = NULL
+  # if (!is.null(block_idx)){
+  #   correct_order <- match(rownames(X), names(unlist(block_idx)))
+  #   # paste0('[INFO] Iter: ', iter, "\n"))
+  #   # cat(rownames(X), names(unlist(block_idx)) )  
+  # }
   
   while((diff_beta > tol || diff_theta > tol) && iter < maxIter){
     bhat <- estimate_b(
@@ -41,12 +41,20 @@
       lambda2 = lambda2,
       block_size = block_size,
       zeropos_list = zeropos_list,
-      block_idx = block_idx,
-      correct_order=correct_order
+      block_idx = block_idx
+      # correct_order=correct_order
     )
     # err_beta <- norm(estimands$b - bhat, type = '2')^2 / p^2 
     # err_theta <- norm(estimands$theta - thetahat, type = '2')^2 / n^2
-    curloss <- eval_loss_func(X, sqrt(omega2_hat_iid), bhat, thetahat, S, lambda1, lambda2)
+    curloss <- eval_loss_func(
+      X = X, 
+      homega = sqrt(omega2_hat_iid),
+      hbeta = bhat, 
+      htheta = thetahat,
+      S = S, 
+      lam1 = lambda1,
+      lam2 = lambda2
+    )
     cat(paste0('[INFO] Iter: ', iter, "\n"))
     cat(paste0('[INFO] Loss: ', round(curloss, 7), "\n"))
     # cat(paste0('[INFO] err_beta: ', round(err_beta,7), "\n"))
@@ -132,7 +140,7 @@ estimate_theta <- function(
   block_size,
   block_idx=NULL,
   zeropos_list=NULL,
-  correct_order=NULL,
+  # correct_order=NULL,
   seed=1
 ){
   n <- dim(S)[1]
@@ -146,11 +154,12 @@ estimate_theta <- function(
   if(!is.null(block_idx)){
     for(i in 1:num_blocks){
       zeros = zeropos_list[[i]]
-      if(is.null(zeros) || dim(zeros)[1] == 0)
+      if(is.null(zeros) || dim(zeros)[1] == 0){
         zeros = NULL
-      # cat('[INFO] i ', i)
+      }
+      cat('[INFO]  Processing block: ', i, '\n')
       temp_sig <- glasso(s = S[block_idx[[i]], block_idx[[i]]],
-                         thr = 1.0e-7,
+                         thr = 1.0e-5,
                          rho = lambda2/p,
                          zero = zeros,
                          penalize.diagonal = T)
@@ -172,9 +181,9 @@ estimate_theta <- function(
     }    
   }
   sig.est <- as.matrix(do.call(bdiag, sig.blocks))
-  if(!is.null(correct_order)){
-    sig.est <- sig.est[correct_order, correct_order]    
-  }
+  # if(!is.null(correct_order)){
+  #   sig.est <- sig.est[correct_order, correct_order]    
+  # }
   theta_est <- solve(sig.est)
   return(theta_est)
 }
@@ -242,7 +251,7 @@ networkDAG_sol_path <- function(
       zeropos_list = zeropos_list,
       block_idx = block_idx,
       lambda1 = lambda.path[k],
-      lambda2 = .01,
+      lambda2 = 10,
       maxIter = maxIter,
       tol = 1e-7)
     # check if max degree s < n
@@ -763,13 +772,22 @@ sample_sc_data <- function(
   seed=1
 ){
   set.seed(seed)  
-  subsetID <- sort(unlist(mapply(sample, full_idx, size=size)))
-  subsetXp <- full_log_vals[unlist(subsetID), ]
+  block_idx <- mapply(sample, full_idx, size=size)
+  block_idx <- lapply(block_idx, sort)
+  subsetID <- sort(unlist(block_idx))
+  subsetXp <- full_log_vals[subsetID, ]
+  carry = 0
+  for(i in 1:length(block_idx)){
+    block_idx[[i]][names(block_idx[[i]])] <- 1:length(block_idx[[i]]) + carry 
+    carry <-  block_idx[[i]][length(block_idx[[i]])]
+  }
+  # subsetXp %>% dim()
   temp <- substr(dimnames(subsetXp)[[1]], start = 0, stop = 3) 
   cellnames <- sub(pattern = "_$",replacement =  "", x = temp)
   return(list(
     subsetXp=subsetXp,
-    cellnames=cellnames
+    cellnames=cellnames,
+    block_idx=block_idx
   ))
 }
 
@@ -810,5 +828,38 @@ plot_cpdag <- function(cpdag, rescale = T){
          vertex.label.dist=0.2,
          vertex.label.cex = 0.6)
   }
+}
+
+
+reorder_data <- function(
+  sub_grp_subset,
+  targetgene
+){
+  if(any(table(sub_grp_subset) == 1)){
+    stop('Too many blocks!')
+  }
+  group_idx = unique(sub_grp_subset)
+  block_idx = vector(mode = 'list', length = length(group_idx))
+  for(i in 1:length(block_idx)){
+    block_idx[[i]] = which(sub_grp_subset == group_idx[i])
+  }
+  targetgene_small <- targetgene[(rownames(targetgene) %in% names(sub_grp_subset)), ]
+  # targetgene_small %>% dim()
+  block_idx <- lapply(block_idx, sort)
+  
+  newdf <- targetgene_small[names(block_idx[[1]]),]
+  carry = 0
+  block_idx[[1]][names(block_idx[[1]])] <- 1:length(block_idx[[1]]) + carry 
+  carry <-  block_idx[[1]][length(block_idx[[1]])]
+  
+  for(i in 2:length(block_idx)){
+    newdf <- rbind(newdf, targetgene_small[names(block_idx[[i]]),])
+    block_idx[[i]][names(block_idx[[i]])] <- 1:length(block_idx[[i]]) + carry 
+    carry <-  block_idx[[i]][length(block_idx[[i]])]
+  }
+  return(list(
+    df = newdf,
+    block_idx = block_idx
+  ))
 }
 

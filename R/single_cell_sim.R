@@ -1,27 +1,48 @@
+setwd("~/Documents/research/dag_network/")
 library(dplyr)
 targetgene <- readRDS("data/single_cell_data/sig_genes_log_val.rds")
 sig_genes_log_val <- readRDS("data/sig_genes_log_val_full.rds")
 idx_goodgene <- apply(sig_genes_log_val, 1, function(x) sd(x)/abs(mean(x)) > 0.25) %>% which()
 goodgene <- sig_genes_log_val[idx_goodgene,]
 goodgene %>% dim()
-set.seed(10)
-othergenes <- sample_n(as.data.frame(goodgene[1:7000,]), 3000) %>% as.matrix() %>% t()
+set.seed(12)
+othergenes <- sample_n(as.data.frame(goodgene[1:7000,]), 500) %>% as.matrix() %>% t()
 
 
 
+# default clustering ------------------------------------------------------
+sc_block_idx_full <- readRDS("data/single_cell_data/single_cell_block_idx_full.rds")
+for(i in 1:length(sc_block_idx_full)){
+  names(sc_block_idx_full[[i]]) <- colnames(targetgene)[sc_block_idx_full[[i]]]
+}
+# Xp <- readRDS(file = "data/single_cell_data/sig_genes_log_val.rds")
+dir.create(path = "output/single_cell11")
+setwd(dir = "output/single_cell11")
+Xp <- t(targetgene)
+Xp %>% dim()
+# randomly sample 20 cells from each cell type and merge the indices
+res <- sample_sc_data(
+  full_log_vals = Xp, 
+  full_idx = sc_block_idx_full,
+  size = c(10,10,20,10,15,15,15),
+  seed = 4
+)
+# res <- Xp
+res$subsetXp %>% dim()
+saveRDS(res, "sc_subsampled.rds")
 
 
 # clustering --------------------------------------------------------------
 d <- dist(scale(othergenes), method = "euclidean")
 hc1 <- hclust(d, method = "complete")
-# plot(hc1, cex = 0.6, hang = -1)
-sub_grp <- cutree(hc1, h=65)
+plot(hc1, cex = 0.6, hang = -1)
+sub_grp <- cutree(hc1, h=60)
 sub_grp %>% table()
-sub_grp_subset <- sub_grp[!(sub_grp %in%  which(table(sub_grp) == 1))]
+sub_grp_subset <- sub_grp[!(sub_grp %in%  which(table(sub_grp) ==1))]
 sub_grp_subset %>% table()
+sub_grp_subset %>% table() %>% max()
 sub_grp_remove <- sub_grp[(sub_grp %in%  which(table(sub_grp) == 1))]
-sub_grp_remove
-
+sub_grp_subset %>% length()
 # 
 # test <- substr(names(sub_grp_subset), start = 0, stop = 3)
 # cell_names <- sub(pattern = "_$", "", x = test)[-1] %>% unique()
@@ -32,30 +53,58 @@ sub_grp_remove
 #   H1 %>% table() %>% print()
 # }
 
-if(any(table(sub_grp_subset) == 1)){
-  warnings('Too many blocks!')
-}
-group_idx = unique(sub_grp_subset)
-block_idx = vector(mode = 'list', length = length(group_idx))
-for(i in 1:length(block_idx)){
-  block_idx[[i]] = which(sub_grp_subset == group_idx[i])
-}
+
+# targetgene <- t(targetgene)
+targetgene %>% dim()
+res <- reorder_data(sub_grp_subset = sub_grp_subset, targetgene = targetgene)
+res$df %>% dim()
+res$block_idx[[1]]
+res$block_idx %>% length()
 
 
 
-dir.create(path = "output/single_cell11")
-setwd(dir = "output/single_cell11")
-
-targetgene <- readRDS("~/Documents/research/dag_network/data/single_cell_data/sig_genes_log_val.rds")
-targetgene <- targetgene[, !(colnames(targetgene) %in% names(sub_grp_remove))]
-Xp <- t(targetgene)
-Xp %>% dim()
+# run sim -----------------------------------------------------------------
 networkDAG_sol_path(
-  # X = res$subsetXp, 
-  X = Xp,
+  # X = res$subsetXp,
+  X = res$df,
   block_size=20, 
   zeropos_list = NULL,
-  block_idx = block_idx,
-  lambda_len = 10,
+  block_idx = res$block_idx,
+  lambda_len = 5,
   maxIter = 100
 )
+
+Xdecor_res <- get_Xdecor(res$subsetXp)
+
+GES_sol(res$subsetXp, decor = F)
+GES_sol(Xdecor_res$X_decor, decor = T)
+# GES_sol(Xdecor_res$X_decor_1iter, decor = T)
+pc_sol(Xdecor_res$X_decor, decor = T)
+pc_sol(res$subsetXp, decor = F)
+sparsebn_sol(Xdecor_res$X_decor, decor = T)
+sparsebn_sol(res$subsetXp, decor = F)
+fgesdag <- readRDS("adjmat_fges_CPDAG_decor.rds")
+fgesdag_original <- readRDS("adjmat_fges_CPDAG.rds")
+pcdag <- readRDS("adjmat_pc_CPDAG_decor.rds")
+pcdag_original <- readRDS("adjmat_pc_CPDAG.rds")
+sbndag <- readRDS("adjmat_sparsebn_CPDAG_decor.rds")
+sbndag_original <- readRDS("adjmat_sparsebn_CPDAG.rds")
+
+plot_cpdag(fgesdag_original)
+plot_cpdag(fgesdag)
+plot_cpdag(pcdag_original)
+plot_cpdag(pcdag)
+plot_cpdag(sbndag_original)
+plot_cpdag(sbndag,rescale = T)
+
+
+
+bic_score <- readRDS('BICscores_main.rds')
+best_res <- readRDS(paste0('main_lam_', best_bic, '.rds'))
+bstar_adj_cpdag <- bnstruct::dag.to.cpdag(1*(best_res$bhat != 0)) 
+which(best_res$bhat != 0, arr.ind = T)
+plot_cpdag(best_res$bhat)
+plot_cpdag(best_res$bhat_1iter)
+
+
+which(best_res$bhat[, 'POU5F1'] != 0)
