@@ -34,7 +34,7 @@ saveRDS(res, "sc_subsampled.rds")
 d <- dist(scale(othergenes), method = "euclidean")
 hc1 <- hclust(d, method = "complete")
 # plot(hc1, cex = 0.6, hang = -1)
-sub_grp <- cutree(hc1, h=80)
+sub_grp <- cutree(hc1, h=75)
 sub_grp %>% table()
 sub_grp_subset <- sub_grp[!(sub_grp %in%  which(table(sub_grp) ==1))]
 sub_grp_subset %>% table()
@@ -52,7 +52,7 @@ sub_grp_subset %>% length()
 # }
 
 
-targetgene <- t(targetgene)
+# targetgene <- t(targetgene)
 targetgene %>% dim()
 res <- reorder_data(sub_grp_subset = sub_grp_subset, targetgene = targetgene)
 res$df %>% dim()
@@ -72,19 +72,21 @@ networkDAG_sol_path(
   block_size=20, 
   zeropos_list = NULL,
   block_idx = res$block_idx,
-  lambda_len = 5,
+  lambda_len = 10,
   maxIter = 100
 )
+df <- res$df
 
-Xdecor_res <- get_Xdecor(res$subsetXp)
+Xdecor_res <- get_Xdecor(df)
 
-GES_sol(res$subsetXp, decor = F)
+GES_sol(df, decor = F)
 GES_sol(Xdecor_res$X_decor, decor = T)
 # GES_sol(Xdecor_res$X_decor_1iter, decor = T)
+pc_sol(df, decor = F)
 pc_sol(Xdecor_res$X_decor, decor = T)
-pc_sol(res$subsetXp, decor = F)
+sparsebn_sol(df, decor = F)
 sparsebn_sol(Xdecor_res$X_decor, decor = T)
-sparsebn_sol(res$subsetXp, decor = F)
+
 fgesdag <- readRDS("adjmat_fges_CPDAG_decor.rds")
 fgesdag_original <- readRDS("adjmat_fges_CPDAG.rds")
 pcdag <- readRDS("adjmat_pc_CPDAG_decor.rds")
