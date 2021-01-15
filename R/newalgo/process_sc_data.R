@@ -7,13 +7,13 @@ library(readxl)
 # names(single_cell)[1] <- 'geneID'
 # saveRDS(single_cell, "data/single_cell.rds")
 
-# single_cell <- readRDS("data/single_cell_data/single_cell.rds")
-# sig_genes <- single_cell
+single_cell <- readRDS("data/single_cell_data/single_cell.rds")
+sig_genes <- single_cell
 # %>% filter(geneID %in% gene_names$GeneID)
 # sig_genes %>% dim()
 # count freq of each cell type
-# test <- substr(names(sig_genes), start = 0, stop = 3)
-# sub(pattern = "_$", "", x = test)[-1] %>% table()
+test <- substr(names(sig_genes), start = 0, stop = 3)
+sub(pattern = "_$", "", x = test)[-1] %>% table()
 # log transform of gene count data
 # sig_genes[, -1] <- log10(sig_genes[, -1] + 1.01)
 # sig_genes_log_val <- sig_genes[, -1] %>% as.matrix()
@@ -47,8 +47,6 @@ hc1 <- hclust(d, method = "complete" )
 plot(hc1, cex = 0.6, hang = -1)
 sub_grp <- cutree(hc1, k = 10)
 table(sub_grp)
-
-
 
 
 res$cellnames

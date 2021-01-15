@@ -41,8 +41,6 @@ library(stringr)
 # library(devtools)
 # install_github("bd2kccd/r-causal")
 library(rcausal)
-library(hclust)
-
 
 if (!require("clusterGeneration")) install.packages("clusterGeneration")
 library(clusterGeneration)
