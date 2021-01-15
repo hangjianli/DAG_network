@@ -251,7 +251,7 @@ networkDAG_sol_path <- function(
       zeropos_list = zeropos_list,
       block_idx = block_idx,
       lambda1 = lambda.path[k],
-      lambda2 = 10,
+      lambda2 = 100,
       maxIter = maxIter,
       tol = 1e-7)
     # check if max degree s < n
@@ -837,6 +837,9 @@ reorder_data <- function(
 ){
   if(any(table(sub_grp_subset) == 1)){
     stop('Too many blocks!')
+  }
+  if(!assertthat::are_equal(dim(targetgene)[2], 51)){
+    stop('Dimension of target gene is incorrect!!!')
   }
   group_idx = unique(sub_grp_subset)
   block_idx = vector(mode = 'list', length = length(group_idx))
