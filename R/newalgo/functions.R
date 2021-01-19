@@ -76,6 +76,13 @@
     Sys.sleep(0.01)
     flush.console()
   }
+  cat(paste0('[INFO] Iter: ', iter, "\n"))
+  cat(paste0('[INFO] Loss: ', round(curloss, 7), "\n"))
+  # cat(paste0('[INFO] err_beta: ', round(err_beta,7), "\n"))
+  # cat(paste0('[INFO] err_theta: ', round(err_theta,7), "\n"))
+  cat(paste0('[INFO] diff_beta: ', round(diff_beta, 7), "\n"))
+  cat(paste0('[INFO] diff_theta: ', round(diff_theta, 7), "\n"))
+  cat(paste0("---------------------------------------------","\n"))
   # cat(paste0('[INFO] diff_beta: ', round(diff_beta, 7), "\n"))
   # cat(paste0('[INFO] diff_theta: ', round(diff_theta, 7), "\n"))
   dimnames(bhat) <- list(dimnames(X)[[2]], dimnames(X)[[2]])
@@ -158,8 +165,13 @@ estimate_theta <- function(
         zeros = NULL
       }
       cat('[INFO]  Processing block: ', i, '\n')
+      if(length(block_idx[[i]]) < p){
+        lambda2 = 0.01
+      }else{
+        lambda2 =  p
+      }
       temp_sig <- glasso(s = S[block_idx[[i]], block_idx[[i]]],
-                         thr = 1.0e-5,
+                         thr = 1.0e-7,
                          rho = lambda2/p,
                          zero = zeros,
                          penalize.diagonal = T)
@@ -233,11 +245,15 @@ networkDAG_sol_path <- function(
   zeropos_list,
   block_idx=NULL,
   lambda_len=10,
+  lambda2=100,
   maxIter=100
 ){
   n <- dim(X)[1]
   p <- dim(X)[2]
   lambda.path <- rev(get_lam_path(p, X, rho.est = rep(1,p), lambda_len, 100))
+  if(lambda_len == 1){
+    lambda.path[1] = 0
+  }
   saveRDS(lambda.path, file = "lambda_path.rds")
   BICscores_main <- minrowcor_main <- rep(0, length(lambda.path))
   BICscores_1iter_main <- minrowcor_1iter_main <- rep(0, length(lambda.path))
@@ -251,7 +267,7 @@ networkDAG_sol_path <- function(
       zeropos_list = zeropos_list,
       block_idx = block_idx,
       lambda1 = lambda.path[k],
-      lambda2 = 100,
+      lambda2 = lambda2,
       maxIter = maxIter,
       tol = 1e-7)
     # check if max degree s < n
@@ -641,7 +657,7 @@ get_Xdecor <- function(Xp, best_bic_predefined = NULL){
 
 sparsebn_sol <- function(X, decor=F){
   sbX <- sparsebnData(X, type = "continuous")
-  sb_path <- estimate.dag(sbX, verbose = T)
+  sb_path <- estimate.dag(sbX, verbose = F)
   sol_idx <- select.parameter(sb_path, sbX)
   sol_base <- select(sb_path, index = sol_idx)
   adjmat_sbbase <- get.adjacency.matrix(sol_base) %>% as.matrix()
@@ -816,7 +832,7 @@ plot_cpdag <- function(cpdag, rescale = T){
     plot(g, 
          # layout = layout.fruchterman.reingold,
          edge.arrow.size=0.3, vertex.size=0.1, 
-         vertex.label.dist=0.2,
+         vertex.label.dist=0.5,
          vertex.label.cex = 0.6)
   }else{
     plot(g, 
@@ -842,24 +858,25 @@ reorder_data <- function(
     stop('Dimension of target gene is incorrect!!!')
   }
   group_idx = unique(sub_grp_subset)
-  block_idx = vector(mode = 'list', length = length(group_idx))
-  for(i in 1:length(block_idx)){
-    block_idx[[i]] = which(sub_grp_subset == group_idx[i])
+  block_rownames = vector(mode = 'list', length = length(group_idx))
+  for(i in 1:length(block_rownames)){
+    block_rownames[[i]] = names(sub_grp_subset[which(sub_grp_subset == group_idx[i])])
   }
+  # select the cells that appear in the clusters. Unnecessary if no cells were dropped.
   targetgene_small <- targetgene[(rownames(targetgene) %in% names(sub_grp_subset)), ]
-  # targetgene_small %>% dim()
-  block_idx <- lapply(block_idx, sort)
   
-  newdf <- targetgene_small[names(block_idx[[1]]),]
+  block_idx = vector(mode = 'list', length = length(group_idx))
+  newdf <- targetgene_small[block_rownames[[1]],]
   carry = 0
-  block_idx[[1]][names(block_idx[[1]])] <- 1:length(block_idx[[1]]) + carry 
-  carry <-  block_idx[[1]][length(block_idx[[1]])]
+  block_idx[[1]] <- 1:length(block_rownames[[1]]) + carry 
+  carry <-  length(block_idx[[1]])
   
   for(i in 2:length(block_idx)){
-    newdf <- rbind(newdf, targetgene_small[names(block_idx[[i]]),])
-    block_idx[[i]][names(block_idx[[i]])] <- 1:length(block_idx[[i]]) + carry 
-    carry <-  block_idx[[i]][length(block_idx[[i]])]
+    newdf <- rbind(newdf, targetgene_small[block_rownames[[i]],])
+    block_idx[[i]] <- 1:length(block_rownames[[i]]) + carry 
+    carry <-  carry + length(block_rownames[[i]])
   }
+  
   return(list(
     df = newdf,
     block_idx = block_idx
