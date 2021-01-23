@@ -176,6 +176,7 @@ dag_mle_estimation <- function(Bhat, Lhat, X){
 
 BIC_dag <- function(X, bmle, omgmle, theta){
   s0 <- sum(abs(bmle) > 1e-4)
+  t0 <- sum(abs(theta) > 1e-4)
   n <- dim(X)[1]
   p <- dim(X)[2]
   X <- chol(theta)%*%X
@@ -183,11 +184,11 @@ BIC_dag <- function(X, bmle, omgmle, theta){
   test.res <- apply(test.temp,2,tcrossprod)
   S <- matrix(rowSums(test.res),n,n)
   tracetrm <- sum(diag(S))
-  loglikelihood <- n*sum(log(omgmle)) - p*log(det(theta)) + tracetrm
-  fn <- log(max(n,p)) * s0
-  BIC <- loglikelihood + fn
+  negloglikelihood <- n*sum(log(omgmle)) - p*log(det(theta)) + tracetrm
+  fn <- log(max(n,p)) * (s0 + t0) 
+  BIC <- negloglikelihood + fn
   return(list(BIC = BIC,
-              likelihood = loglikelihood,
+              negloglikelihood = negloglikelihood,
               s0 = s0,
               trace = tracetrm))
 }
