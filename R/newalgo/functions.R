@@ -153,8 +153,10 @@ estimate_theta <- function(
   n <- dim(S)[1]
   set.seed(seed)
   if(!is.null(zeropos_list)){
+    cat('[INFO]  Using the input zero list to form blocks...', '\n')
     num_blocks = length(zeropos_list)  
   }else{
+    cat('[INFO]  Using the input block_idx to form blocks...', '\n')
     num_blocks = length(block_idx)  
   }
   sig.blocks <- vector(mode = "list", length = num_blocks)
@@ -166,15 +168,18 @@ estimate_theta <- function(
       }
       cat('[INFO]  Processing block: ', i, '\n')
       if(length(block_idx[[i]]) < p){
-        lambda2 = 0.01
+        lam2 = 1
+        cat('[INFO]  n < p. No penalty needed.\n')
       }else{
-        lambda2 =  p
+        lam2 = lambda2
+        cat('[INFO]  n > p. lam2 = ', lam2, '\n')
       }
       temp_sig <- glasso(s = S[block_idx[[i]], block_idx[[i]]],
-                         thr = 1.0e-7,
-                         rho = lambda2/p,
+                         nobs = p,
+                         rho = lam2/p,
                          zero = zeros,
-                         penalize.diagonal = T)
+                         penalize.diagonal = T,
+                         trace = F)
       sig.blocks[[i]] <- cov2cor(temp_sig$w)
     }
   }else{
@@ -189,7 +194,6 @@ estimate_theta <- function(
                          zero = zeros,
                          penalize.diagonal = T)
       sig.blocks[[i]] <- cov2cor(temp_sig$w)
-      # sig.blocks[[i]] <- temp_sig$w
     }    
   }
   sig.est <- as.matrix(do.call(bdiag, sig.blocks))
@@ -226,15 +230,27 @@ estimate_omega_square <- function(X){
 
 
 eval_loss_func <- function(X, homega, hbeta, htheta, S, lam1, lam2){
+  #' This loss differs from the negative log likelihood by the omega term
   n <- dim(X)[1]
   p <- dim(X)[2]
   hphi <- sweep(hbeta, 2, homega^2, '/')
-  result <- (
-    -p*log(det(htheta)) + 
-    p*sum(diag(S%*%htheta)) +
-    lam1*sum(abs(hphi)) + 
-    lam2*sum(abs(htheta))
-  )
+  theta_term <- -p*log(det(htheta))
+  if(is.infinite(theta_term)){
+    warning('theta_term is infinite!!!\n')
+  }
+  trace_term <- p*sum(diag(S%*%htheta))
+  if(is.infinite(trace_term)){
+    warning('trace_term is infinite!!!\n')
+  }
+  lam1_term <- lam1*sum(abs(hphi)) 
+  if(is.infinite(lam1_term)){
+    warning('lam1_term is infinite!!!\n')
+  }
+  lam2_term <- lam2*sum(abs(htheta))
+  if(is.infinite(lam2_term)){
+    warning('lam2_term is infinite!!!\n')
+  }
+  result <- theta_term + trace_term + lam1_term + lam2_term
   return(result)  
 }
 
@@ -246,17 +262,26 @@ networkDAG_sol_path <- function(
   block_idx=NULL,
   lambda_len=10,
   lambda2=100,
+  lambda1_max_div = 10,
   maxIter=100
 ){
   n <- dim(X)[1]
   p <- dim(X)[2]
-  lambda.path <- rev(get_lam_path(p, X, rho.est = rep(1,p), lambda_len, 100))
+  lambda.path <- rev(
+    get_lam_path(
+      p, 
+      X, 
+      rho.est = rep(1,p), 
+      lambda_len, 
+      div = lambda1_max_div)
+  )
   if(lambda_len == 1){
     lambda.path[1] = 0
   }
   saveRDS(lambda.path, file = "lambda_path.rds")
   BICscores_main <- minrowcor_main <- rep(0, length(lambda.path))
   BICscores_1iter_main <- minrowcor_1iter_main <- rep(0, length(lambda.path))
+  BICscores_baseline <- rep(0, length(lambda.path))
   for(k in 1:length(lambda.path)){
     set.seed(1)
     cat(paste0("===============================================================","\n"))
@@ -269,7 +294,8 @@ networkDAG_sol_path <- function(
       lambda1 = lambda.path[k],
       lambda2 = lambda2,
       maxIter = maxIter,
-      tol = 1e-7)
+      tol = 1e-7
+    )
     # check if max degree s < n
     if(any(apply(res$bhat, 2, function(x) sum(abs(x) > 1e-4)) >= n)){
       cat("[INFO] lambda is too small, algorithm stops at k = ", k, "\n")
@@ -290,8 +316,14 @@ networkDAG_sol_path <- function(
       Bhat = res$bhat_1iter,
       Lhat = chol(res$thetahat_1iter)
     )
+    mle_result_baseline <- dag_mle_estimation(
+      X = X, 
+      Bhat = res$bhat_1iter,
+      Lhat = diag(n)
+    )
     saveRDS(mle_result, file = paste0("mainMLE_lam_", k, ".rds"))
     saveRDS(mle_result_1iter, file = paste0("mainMLE_1iter_lam_", k, ".rds"))
+    saveRDS(mle_result_baseline, file = paste0("baselineMLE_lam_", k, ".rds"))
     BIC_result <- BIC_dag(
       X = X,
       bmle = mle_result$Bmle, 
@@ -306,64 +338,76 @@ networkDAG_sol_path <- function(
       theta = res$thetahat_1iter
     )
     BICscores_1iter_main[k] <- BIC_1iter_result$BIC
+    BIC_baseline_result <- BIC_dag(
+      X = X,
+      bmle = mle_result_baseline$Bmle, 
+      omgmle = mle_result_baseline$omgmlesq,
+      theta = diag(n)
+    )
+    BICscores_baseline[k] <- BIC_baseline_result$BIC
   }
+  saveRDS(BIC_baseline_result, 'BIC_baseline_result.rds')
+  saveRDS(BIC_result, 'BIC_main_result.rds')
+  saveRDS(BIC_1iter_result, 'BIC_1iter_result.rds')
+  
   saveRDS(BICscores_main, "BICscores_main.rds")
   saveRDS(minrowcor_main, "minrowcor_main.rds")
   saveRDS(BICscores_1iter_main, "BICscores_1iter_main.rds")
   saveRDS(minrowcor_1iter_main, "minrowcor_1iter_main.rds")
+  saveRDS(BICscores_baseline, "BICscores_baseline.rds")
 }
-
-bench_sol_path <- function(
-  X,
-  block_size,
-  zeropos_list=zeropos_list,
-  lambda_len=10,
-  maxIter=100
-){
-  n <- dim(X)[1]
-  p <- dim(X)[2]
-  lambda.path <- rev(get_lam_path(p, X, rho.est = rep(1,p), lambda_len, 100))
-  saveRDS(lambda.path, file = "lambda_path.rds")
-  BICscores_bench <- minrowcor_bench <- rep(0, length(lambda.path))
-  for(k in 1:length(lambda.path)){
-    set.seed(1)
-    cat(paste0("=======================================================","\n"))
-    cat(paste0('[INFO] Lambda k: ', k, "\n"))
-    res <- run_bcd(
-      X = X, 
-      baseline_flag = T,
-      block_size = block_size,
-      zeropos_list = zeropos_list,
-      lambda1 = lambda.path[k],
-      lambda2 = .001,
-      maxIter = maxIter,
-      tol = 1e-7)
-    
-    # check if max degree s < n
-    if(any(apply(res$bhat, 2, function(x) sum(abs(x) > 1e-4)) >= n)){
-      cat("[INFO] lambda is too small, algorithm stops at k = ", k, "\n")
-      break
-    }
-    saveRDS(res, file = paste0("baseline_lam_", k, ".rds"))
-    cor_est <- cor(t(chol(res$thetahat)%*%(X - X%*%res$bhat)))
-    minrowcor_bench[k] <- sum(abs(cor_est[upper.tri(cor_est)]))
-    mle_result <- dag_mle_estimation(
-      X = X, 
-      Bhat = res$bhat, 
-      Lhat = chol(res$thetahat)
-    )
-    saveRDS(mle_result, file = paste0("baselineMLE_lam_", k, ".rds"))
-    BIC_result <- BIC_dag(
-      X = X,
-      bmle = mle_result$Bmle, 
-      omgmle = mle_result$omgmlesq,
-      theta = res$thetahat
-    )
-    BICscores_bench[k] <- BIC_result$BIC
-    saveRDS(BICscores_bench, "BICscores_baseline.rds")
-    saveRDS(minrowcor_bench, "minrowcor_baseline.rds")
-  }
-}
+# 
+# bench_sol_path <- function(
+#   X,
+#   block_size,
+#   zeropos_list=zeropos_list,
+#   lambda_len=10,
+#   maxIter=100
+# ){
+#   n <- dim(X)[1]
+#   p <- dim(X)[2]
+#   lambda.path <- rev(get_lam_path(p, X, rho.est = rep(1,p), lambda_len, 100))
+#   saveRDS(lambda.path, file = "lambda_path.rds")
+#   BICscores_bench <- minrowcor_bench <- rep(0, length(lambda.path))
+#   for(k in 1:length(lambda.path)){
+#     set.seed(1)
+#     cat(paste0("=======================================================","\n"))
+#     cat(paste0('[INFO] Lambda k: ', k, "\n"))
+#     res <- run_bcd(
+#       X = X, 
+#       baseline_flag = T,
+#       block_size = block_size,
+#       zeropos_list = zeropos_list,
+#       lambda1 = lambda.path[k],
+#       lambda2 = .001,
+#       maxIter = maxIter,
+#       tol = 1e-7)
+#     
+#     # check if max degree s < n
+#     if(any(apply(res$bhat, 2, function(x) sum(abs(x) > 1e-4)) >= n)){
+#       cat("[INFO] lambda is too small, algorithm stops at k = ", k, "\n")
+#       break
+#     }
+#     saveRDS(res, file = paste0("baseline_lam_", k, ".rds"))
+#     cor_est <- cor(t(chol(res$thetahat)%*%(X - X%*%res$bhat)))
+#     minrowcor_bench[k] <- sum(abs(cor_est[upper.tri(cor_est)]))
+#     mle_result <- dag_mle_estimation(
+#       X = X, 
+#       Bhat = res$bhat, 
+#       Lhat = chol(res$thetahat)
+#     )
+#     saveRDS(mle_result, file = paste0("baselineMLE_lam_", k, ".rds"))
+#     BIC_result <- BIC_dag(
+#       X = X,
+#       bmle = mle_result$Bmle, 
+#       omgmle = mle_result$omgmlesq,
+#       theta = res$thetahat
+#     )
+#     BICscores_bench[k] <- BIC_result$BIC
+#     saveRDS(BICscores_bench, "BICscores_baseline.rds")
+#     saveRDS(minrowcor_bench, "minrowcor_baseline.rds")
+#   }
+# }
 
 sim_newalgo_ordered <- function(
   args, 
