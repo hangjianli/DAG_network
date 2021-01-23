@@ -11,6 +11,9 @@ node_modules
 /figs
 /JSM_presentation
 
+/data/*
+!/data/single_cell_data
+
 # Ignore pycharm files
 .idea/*
 .idea/misc.xml
