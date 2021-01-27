@@ -20,7 +20,13 @@ saveRDS(estimands, file = paste0('output/', args$setting, "/estimands.rds"))
 # ordered 
 setwd("~/Documents/research/dag_network")
 simID <- args$setting
-sim_newalgo_ordered(args, estimands, start_sim=1, end_sim=args$num_sim, lamLen=10)
+sim_newalgo_ordered(
+  args,
+  estimands, 
+  start_sim=1,
+  end_sim=args$num_sim, 
+  lamLen=10,
+  lambda1_max_div = 100)
 process_output_ordered(simID = simID, estimands = estimands, thr = 0.1)
 get_all_shd_ordered(simID = simID, estimands, args$num_sim)
 get_average_shd_ordered(simID = simID, nsim = as.numeric(args$num_sim))
@@ -34,8 +40,21 @@ get_average_shd_unordered(simID = simID, nsim = as.numeric(args$num_sim))
 
 # single cell data --------------------------------------------------------
 
+n <- dim(X$X)[1]
+BIC_dag(
+  X = X$X,
+  bmle = estimands$b, 
+  omgmle = estimands$omg.sq,
+  theta = diag(n)
+)
 
 
+BIC_dag(
+  X = X$X,
+  bmle = estimands$b, 
+  omgmle = estimands$omg.sq,
+  theta = estimands$theta
+)
 
 # hierarchical clustering here---------------------------------------------
 num_blocks = 5

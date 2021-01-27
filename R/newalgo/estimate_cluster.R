@@ -8,22 +8,36 @@ goodgene %>% dim() # all the genes that passed VOC test
 goodgene_exclude_target <- goodgene[!(rownames(goodgene) %in% colnames(targetgene)), ]
 goodgene_exclude_target %>% dim()
 # setdiff(colnames(targetgene), rownames(goodgene)) # this should be empty
-othergenes <- sample_n(as.data.frame(goodgene_exclude_target), 2000) %>% 
+set.seed(10)
+othergenes <- sample_n(as.data.frame(goodgene_exclude_target), 5000) %>% 
   as.matrix() #  2000 x 1018
-othergenes %>% dim
+othergenes %>% dim()
+
+
+# two-step clustering -----------------------------------------------------
+sc_idx_full <- readRDS("~/Documents/research/dag_network/data/single_cell_data/single_cell_block_idx_full.rds")
+sim_data <- two_step_cluster(
+  othergenes = othergenes,
+  targetgene = targetgene,
+  sc_idx_full = sc_idx_full,
+  corr_thr = c(0.18, 0.16, 0.23, 0.2, 0.17, 0.185, 0.21)
+  )
+
+
+# simple clustering -----------------------------------------------------
+
 
 # compute pairwise distance based on correlation --------------------------
 # cell.cor <- othergenes %>% cor(use="pairwise.complete.obs")
 # saveRDS(cell.cor, 'data/single_cell_data/cell_cor.rds')
-cell.cor <- readRDS('data/single_cell_data/cell_cor.rds')
+# cell.cor <- readRDS('data/single_cell_data/cell_cor.rds')
 cell.cor %>% str()
 cell.dist <- as.dist(1 - abs(cell.cor))
 cell.tree <- hclust(cell.dist, method="complete")
 plot(cell.tree, cex=0.2)
-sub_grp <- cutree(cell.tree, h=0.15)
+sub_grp <- cutree(cell.tree, h=0.35)
 
 sub_grp %>% table()
-
 
 sub_grp_subset <- sub_grp[!(sub_grp %in%  which(table(sub_grp) ==1))]
 sub_grp_subset %>% table()
@@ -31,7 +45,6 @@ sub_grp_subset %>% table() %>% max()
 sub_grp_remove <- sub_grp[(sub_grp %in%  which(table(sub_grp) == 1))]
 sub_grp_subset %>% length()
 sub_grp <- sub_grp_subset
-
 
 # check the clusters
 cellnames <- substr(names(sub_grp), start = 0, stop = 3)
@@ -42,24 +55,38 @@ clusters %>% sum()
 clusters
 sub_grp %>% head(10)
 
-sim_data <- reorder_data(sub_grp_subset = sub_grp, targetgene = targetgene)
-sim_data$df %>% dim()
+# sim_data <- reorder_data(sub_grp_subset = sub_grp, targetgene = targetgene)
+# sim_data$df %>% dim()
 # saveRDS(sim_data, 'data/single_cell_data/sim_data.rds')
 # sim_data <- readRDS('~/Documents/research/dag_network/data/single_cell_data/sim_data.rds')
 # estimate decorrelation matrix  ------------------------------------------------------
 
+sim_data <- list(
+  df = resdf,
+  block_idx = reslist
+)
+dir.create(path = "output/single_cell27")
+setwd(dir = "output/single_cell27")
 
-dir.create(path = "output/single_cell23")
-setwd(dir = "output/single_cell23")
-
-saveRDS(clusters, 'clusters.rds')
+# saveRDS(clusters, 'clusters.rds')
 
 
 
+# sim_data <- two_step_cluster(
+#   othergenes = othergenes,
+#   targetgene = targetgene,
+#   sc_idx_full = sc_idx_full,
+#   corr_thr = c(0.18, 0.16, 0.24, 0.24, 0.19, 0.22, 0.21)
+# )
+
+saveRDS(sim_data, 'sim_data.rds')
+
+X = apply(sim_data$df, 2, scale, scale=F)
+rownames(X) <- rownames(sim_data$df)
 networkDAG_sol_path(
   # X = res$subsetXp,
-  X = sim_data$df,
-  block_size=1, 
+  X = X,
+  block_size=NULL, 
   zeropos_list = NULL,
   block_idx = sim_data$block_idx,
   lambda_len = 10,
@@ -102,14 +129,21 @@ plot_cpdag(sbndag,rescale = T)
 
 
 
-X = sim_data$df
-block_size=1 
+X = apply(sim_data$df, 2, scale, scale=F)
+rownames(X) <- rownames(sim_data$df)
+
+block_size=NULL
 zeropos_list = NULL
 block_idx = sim_data$block_idx
 lambda_len = 10
-lambda2 = 100
+lambda2 = 200
 lambda1_max_div = 50
 maxIter = 100
+
+k=5
+lambda1 = lambda.path[k]
+tol = 1e-7
+
 
 X = X 
 homega = sqrt(omega2_hat_iid)
