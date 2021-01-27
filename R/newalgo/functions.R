@@ -12,8 +12,14 @@
   p <- dim(X)[2]
   thetahat <- diag(n)
   num_blocks <- length(zeropos_list)
-  X_iid <- X[seq(1, n, by = block_size),]
-  X_iid <- X
+  # X_iid <- X[seq(1, n, by = block_size),]
+  if(!is.null(block_idx)){
+    N <- length(block_idx)
+    iid_idx <- sapply(sim_data$block_idx, FUN = sample, size=1)
+    X_iid <- X[iid_idx, ]
+  }else{
+    X_iid <- X  
+  }
   omega2_hat_iid <- estimate_omega_square(X_iid)
   old_hbeta <- matrix(0, p, p)
   old_htheta <- matrix(0, n, n)
@@ -48,12 +54,14 @@
     # err_theta <- norm(estimands$theta - thetahat, type = '2')^2 / n^2
     curloss <- eval_loss_func(
       X = X, 
+      block_idx = block_idx,
       homega = sqrt(omega2_hat_iid),
       hbeta = bhat, 
       htheta = thetahat,
       S = S, 
       lam1 = lambda1,
-      lam2 = lambda2
+      lam2 = 0.01,
+      iter = iter
     )
     cat(paste0('[INFO] Iter: ', iter, "\n"))
     cat(paste0('[INFO] Loss: ', round(curloss, 7), "\n"))
@@ -91,6 +99,7 @@
     thetahat=thetahat,
     bhat_1iter=bhat_1iter,
     thetahat_1iter=thetahat_1iter,
+    omegahat = omega2_hat_iid,
     losses=loss_his[loss_his!=0]
   ))
  }
@@ -162,17 +171,21 @@ estimate_theta <- function(
   sig.blocks <- vector(mode = "list", length = num_blocks)
   if(!is.null(block_idx)){
     for(i in 1:num_blocks){
+      if(length(block_idx[[i]]) == 1){
+        sig.blocks[[i]] = 1
+        next
+      }
       zeros = zeropos_list[[i]]
       if(is.null(zeros) || dim(zeros)[1] == 0){
         zeros = NULL
       }
-      cat('[INFO]  Processing block: ', i, '\n')
+      # cat('[INFO]  Processing block: ', i, '\n')
       if(length(block_idx[[i]]) < p){
-        lam2 = 1
-        cat('[INFO]  n < p. No penalty needed.\n')
+        lam2 = 0.01
+        # cat('[INFO]  n < p. No penalty needed.\n')
       }else{
         lam2 = lambda2
-        cat('[INFO]  n > p. lam2 = ', lam2, '\n')
+        # cat('[INFO]  n > p. lam2 = ', lam2, '\n')
       }
       temp_sig <- glasso(s = S[block_idx[[i]], block_idx[[i]]],
                          nobs = p,
@@ -211,45 +224,64 @@ estimate_omega_square <- function(X){
   n <- dim(X)[1]
   res = numeric(length = p)
   res[1] = 1
+  # if(p > n){
+  #   for(i in 2:p){
+  #     x = as.matrix(cbind(0,X[,1:(i-1)]))
+  #     y = as.matrix(X[,i])  
+  #     model = lm(y~x-1)
+  #     res[i] = sum(model$residuals^2) / (n-1)
+  #   }
+  # }else{
   for(i in 2:p){
     x = as.matrix(cbind(0,X[,1:(i-1)]))
     y = as.matrix(X[,i])
     lambda <- sqrt(log(p)/n)
     model = glmnet(x = x,
-                 y = y,
-                 alpha = 1,
-                 lambda = lambda,
-                 intercept = F,
-                 standardize = F,
-                 family = "gaussian",
-                 thresh = 1e-10) 
+                   y = y,
+                   alpha = 1,
+                   lambda = lambda,
+                   intercept = F,
+                   standardize = F,
+                   family = "gaussian",
+                   thresh = 1e-10) 
     res[i] <- norm(y - x%*%model$beta, '2')^2/(2*n) + lambda*norm(model$beta, '1')
+    # }
   }
+  
   return(res)
 }
 
 
-eval_loss_func <- function(X, homega, hbeta, htheta, S, lam1, lam2){
+eval_loss_func <- function(X, block_idx, homega, hbeta, htheta, S, lam1, lam2, iter){
   #' This loss differs from the negative log likelihood by the omega term
   n <- dim(X)[1]
   p <- dim(X)[2]
   hphi <- sweep(hbeta, 2, homega^2, '/')
-  theta_term <- -p*log(det(htheta))
+  
+  if(!is.null(block_idx)){
+    theta_term <- -p*sum(sapply(block_idx, function(x){log(det(as.matrix(htheta[x,x])))}))  
+  }else{
+    theta_term <- -p*log(det(htheta))
+  }
+  cat(paste0('[INFO] theta_term: ' ,theta_term, '\n'))
   if(is.infinite(theta_term)){
-    warning('theta_term is infinite!!!\n')
+    warning(paste0('[INFO] Iter: ', iter, '. theta_term is infinite!!!\n'))
   }
   trace_term <- p*sum(diag(S%*%htheta))
   if(is.infinite(trace_term)){
-    warning('trace_term is infinite!!!\n')
+    warning(paste0('[INFO] Iter: ', iter, '. trace_term is infinite!!!\n'))
   }
+  cat(paste0('[INFO] trace_term: ' ,trace_term, '\n'))
   lam1_term <- lam1*sum(abs(hphi)) 
   if(is.infinite(lam1_term)){
     warning('lam1_term is infinite!!!\n')
   }
+  cat(paste0('[INFO] lam1_term: ' ,lam1_term, '\n'))
   lam2_term <- lam2*sum(abs(htheta))
   if(is.infinite(lam2_term)){
     warning('lam2_term is infinite!!!\n')
   }
+  cat(paste0('[INFO] lam2_term: ' ,lam2_term, '\n'))
   result <- theta_term + trace_term + lam1_term + lam2_term
   return(result)  
 }
@@ -268,13 +300,7 @@ networkDAG_sol_path <- function(
   n <- dim(X)[1]
   p <- dim(X)[2]
   lambda.path <- rev(
-    get_lam_path(
-      p, 
-      X, 
-      rho.est = rep(1,p), 
-      lambda_len, 
-      div = lambda1_max_div)
-  )
+    get_lam_path(p, X, rho.est = rep(1,p), lambda_len, div = lambda1_max_div))
   if(lambda_len == 1){
     lambda.path[1] = 0
   }
@@ -326,6 +352,7 @@ networkDAG_sol_path <- function(
     saveRDS(mle_result_baseline, file = paste0("baselineMLE_lam_", k, ".rds"))
     BIC_result <- BIC_dag(
       X = X,
+      block_idx = block_idx,
       bmle = mle_result$Bmle, 
       omgmle = mle_result$omgmlesq,
       theta = res$thetahat
@@ -333,6 +360,7 @@ networkDAG_sol_path <- function(
     BICscores_main[k] <- BIC_result$BIC
     BIC_1iter_result <- BIC_dag(
       X = X,
+      block_idx = block_idx,
       bmle = mle_result_1iter$Bmle, 
       omgmle = mle_result_1iter$omgmlesq,
       theta = res$thetahat_1iter
@@ -340,6 +368,7 @@ networkDAG_sol_path <- function(
     BICscores_1iter_main[k] <- BIC_1iter_result$BIC
     BIC_baseline_result <- BIC_dag(
       X = X,
+      block_idx = block_idx,
       bmle = mle_result_baseline$Bmle, 
       omgmle = mle_result_baseline$omgmlesq,
       theta = diag(n)
@@ -414,7 +443,8 @@ sim_newalgo_ordered <- function(
   estimands,
   start_sim, 
   end_sim,
-  lamLen=10
+  lamLen=10,
+  lambda1_max_div=50
 ){
   for(sim in start_sim:end_sim){
     dir.create(path = paste0("output/",args$setting, "/", args$setting, "--", sim))
@@ -431,7 +461,8 @@ sim_newalgo_ordered <- function(
       X = X, 
       block_size=args$block_size, 
       zeropos_list = estimands$zeropos_list,
-      lambda_len = lamLen
+      lambda_len = lamLen,
+      lambda1_max_div = lambda1_max_div
     )
     setwd("~/Documents/research/dag_network")
   }
@@ -892,38 +923,68 @@ plot_cpdag <- function(cpdag, rescale = T){
 
 
 reorder_data <- function(
-  sub_grp_subset,
+  sub_grp,
   targetgene
 ){
-  if(any(table(sub_grp_subset) == 1)){
-    stop('Too many blocks!')
-  }
+  # if(any(table(sub_grp) == 1)){
+  #   stop('Too many blocks!')
+  # }
   if(!assertthat::are_equal(dim(targetgene)[2], 51)){
     stop('Dimension of target gene is incorrect!!!')
   }
-  group_idx = unique(sub_grp_subset)
+  # select the cells that appear in the clusters. Unnecessary if no cells were dropped.
+  targetgene_small <- targetgene[(rownames(targetgene) %in% names(sub_grp)), ]
+  group_idx = unique(sub_grp)
   block_rownames = vector(mode = 'list', length = length(group_idx))
   for(i in 1:length(block_rownames)){
-    block_rownames[[i]] = names(sub_grp_subset[which(sub_grp_subset == group_idx[i])])
+    block_rownames[[i]] = names(sub_grp[which(sub_grp == group_idx[i])])
   }
-  # select the cells that appear in the clusters. Unnecessary if no cells were dropped.
-  targetgene_small <- targetgene[(rownames(targetgene) %in% names(sub_grp_subset)), ]
-  
   block_idx = vector(mode = 'list', length = length(group_idx))
   newdf <- targetgene_small[block_rownames[[1]],]
   carry = 0
   block_idx[[1]] <- 1:length(block_rownames[[1]]) + carry 
   carry <-  length(block_idx[[1]])
-  
   for(i in 2:length(block_idx)){
-    newdf <- rbind(newdf, targetgene_small[block_rownames[[i]],])
+    newdf <- rbind(newdf, targetgene_small[block_rownames[[i]], ,drop=F])
     block_idx[[i]] <- 1:length(block_rownames[[i]]) + carry 
     carry <-  carry + length(block_rownames[[i]])
   }
-  
   return(list(
     df = newdf,
     block_idx = block_idx
   ))
 }
 
+
+two_step_cluster <- function(
+  othergenes,
+  targetgene,
+  sc_idx_full, 
+  corr_thr = c(0.18, 0.16, 0.24, 0.24, 0.19, 0.22, 0.21)
+){
+  if(!assertthat::are_equal(dim(targetgene)[2], 51)){
+    stop('Dimension of target gene is incorrect!!!')
+  }
+  for(i in 1:length(sc_idx_full)){
+    cell.cor <- othergenes[, sc_idx_full[[i]]] %>% cor(use="pairwise.complete.obs")
+    cell.dist <- as.dist(1 - abs(cell.cor))
+    cell.tree <- hclust(cell.dist, method="complete")
+    sub_grp <- cutree(cell.tree, h=corr_thr[i])
+    saveRDS(table(sub_grp), file = paste0('sub_grp_', i, '.rds'))
+    print(max(table(sub_grp)))
+    targetgene_subset <- targetgene[(rownames(targetgene) %in% names(sub_grp)), ]  
+    df_tmp <- reorder_data(sub_grp = sub_grp, targetgene = targetgene_subset)  
+    if(i == 1){
+      resdf <- df_tmp$df
+      reslist = df_tmp$block_idx
+    }else{
+      resdf <- rbind(resdf, df_tmp$df)  
+      newlist <- lapply(df_tmp$block_idx, function(x) x + length(sc_idx_full[[i-1]]))
+      reslist <- c(reslist, newlist)
+    }
+  }
+  return(list(
+    df = resdf,
+    block_idx = reslist
+  ))
+}

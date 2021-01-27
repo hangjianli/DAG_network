@@ -174,7 +174,7 @@ dag_mle_estimation <- function(Bhat, Lhat, X){
 }
 
 
-BIC_dag <- function(X, bmle, omgmle, theta){
+BIC_dag <- function(X, block_idx, bmle, omgmle, theta){
   s0 <- sum(abs(bmle) > 1e-4)
   t0 <- sum(abs(theta) > 1e-4)
   n <- dim(X)[1]
@@ -184,7 +184,13 @@ BIC_dag <- function(X, bmle, omgmle, theta){
   test.res <- apply(test.temp,2,tcrossprod)
   S <- matrix(rowSums(test.res),n,n)
   tracetrm <- sum(diag(S))
-  negloglikelihood <- n*sum(log(omgmle)) - p*log(det(theta)) + tracetrm
+  if(!is.null(block_idx)){
+    thetatrm <- -p*sum(sapply(block_idx, function(x){log(det(as.matrix(theta[x,x])))}))  
+  }else{
+    thetatrm <- - p*log(det(theta))
+  }
+  
+  negloglikelihood <- n*sum(log(omgmle)) + thetatrm + tracetrm
   fn <- log(max(n,p)) * (s0 + t0) 
   BIC <- negloglikelihood + fn
   return(list(BIC = BIC,
