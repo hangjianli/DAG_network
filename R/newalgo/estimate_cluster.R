@@ -65,24 +65,30 @@ sim_data <- list(
   df = resdf,
   block_idx = reslist
 )
-dir.create(path = "output/single_cell27")
-setwd(dir = "output/single_cell27")
+dir.create(path = "~/Documents/research/dag_network/output/single_cell32")
+setwd(dir = "~/Documents/research/dag_network/output/single_cell32")
 
 # saveRDS(clusters, 'clusters.rds')
 
 
 
-# sim_data <- two_step_cluster(
-#   othergenes = othergenes,
-#   targetgene = targetgene,
-#   sc_idx_full = sc_idx_full,
-#   corr_thr = c(0.18, 0.16, 0.24, 0.24, 0.19, 0.22, 0.21)
-# )
+sim_data <- two_step_cluster(
+  othergenes = othergenes,
+  targetgene = targetgene,
+  sc_idx_full = sc_idx_full,
+  corr_thr = c(0.82, 0.84, 0.77, 0.8, 0.83, 0.815, 0.78)
+)
 
-saveRDS(sim_data, 'sim_data.rds')
+sim_data <- readRDS('sim_data.rds')
+# saveRDS(sim_data, 'sim_data.rds')
 
 X = apply(sim_data$df, 2, scale, scale=F)
 rownames(X) <- rownames(sim_data$df)
+
+con <- file("test.log")
+sink(con, append=TRUE)
+sink(con, append=TRUE, type="message")
+
 networkDAG_sol_path(
   # X = res$subsetXp,
   X = X,
@@ -90,16 +96,22 @@ networkDAG_sol_path(
   zeropos_list = NULL,
   block_idx = sim_data$block_idx,
   lambda_len = 10,
-  lambda2 = 200,
-  lambda1_max_div = 50,
+  lambda2 = 0.01,
+  lambda1_max_div = 2000,
   maxIter = 100
 )
-df <- sim_data$df
+sink() 
+sink(type="message")
 
-Xdecor_res <- get_Xdecor(df)
+Xdecor_res <- get_Xdecor(X)
+df <- X
 
-
-
+BICscores_main <- readRDS("~/Documents/research/dag_network/output/single_cell31/BIC_main_result.rds")
+BICscores_main %>% unlist()
+BICscores_1iter_main <- readRDS("~/Documents/research/dag_network/output/single_cell31/BIC_1iter_result.rds")
+BICscores_1iter_main %>% unlist()
+BICscores_baseline <- readRDS("~/Documents/research/dag_network/output/single_cell31/BIC_baseline_result.rds")
+BICscores_baseline %>% unlist()
 # estimate CPDAG ----------------------------------------------------------
 
 GES_sol(df, decor = F)
@@ -160,4 +172,3 @@ for(i in 1:length(block_idx)){
   res = res * tmp
 }
 
--p*log(res)
