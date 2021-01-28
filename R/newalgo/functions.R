@@ -960,7 +960,7 @@ two_step_cluster <- function(
   othergenes,
   targetgene,
   sc_idx_full, 
-  corr_thr = c(0.18, 0.16, 0.24, 0.24, 0.19, 0.22, 0.21)
+  corr_thr = c(0.820, 0.840, 0.770, 0.800, 0.830, 0.815, 0.780)
 ){
   if(!assertthat::are_equal(dim(targetgene)[2], 51)){
     stop('Dimension of target gene is incorrect!!!')
@@ -969,7 +969,7 @@ two_step_cluster <- function(
     cell.cor <- othergenes[, sc_idx_full[[i]]] %>% cor(use="pairwise.complete.obs")
     cell.dist <- as.dist(1 - abs(cell.cor))
     cell.tree <- hclust(cell.dist, method="complete")
-    sub_grp <- cutree(cell.tree, h=corr_thr[i])
+    sub_grp <- cutree(cell.tree, h = 1-corr_thr[i])
     saveRDS(table(sub_grp), file = paste0('sub_grp_', i, '.rds'))
     print(max(table(sub_grp)))
     targetgene_subset <- targetgene[(rownames(targetgene) %in% names(sub_grp)), ]  
