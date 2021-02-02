@@ -193,7 +193,8 @@ estimate_theta <- function(
                          zero = zeros,
                          penalize.diagonal = T,
                          trace = F)
-      sig.blocks[[i]] <- cov2cor(temp_sig$w)
+      # sig.blocks[[i]] <- cov2cor(temp_sig$w)
+      sig.blocks[[i]] <- temp_sig$w
     }
   }else{
     for(i in 1:num_blocks){
@@ -353,7 +354,7 @@ networkDAG_sol_path <- function(
     BIC_result <- BIC_dag(
       X = X,
       block_idx = block_idx,
-      bmle = mle_result$Bmle, 
+      bmle = mle_result$Bmle,
       omgmle = mle_result$omgmlesq,
       theta = res$thetahat
     )
@@ -361,7 +362,7 @@ networkDAG_sol_path <- function(
     BIC_1iter_result <- BIC_dag(
       X = X,
       block_idx = block_idx,
-      bmle = mle_result_1iter$Bmle, 
+      bmle = mle_result_1iter$Bmle,
       omgmle = mle_result_1iter$omgmlesq,
       theta = res$thetahat_1iter
     )
@@ -663,7 +664,11 @@ get_average_shd_unordered <- function(simID, nsim){
 }
 
 
-GES_sol <- function(X, decor=F){
+GES_sol <- function(
+  X, 
+  block_idx,
+  decor=F
+){
   n <- dim(X)[1]
   p <- dim(X)[2]
   set.seed(100)
@@ -681,14 +686,35 @@ GES_sol <- function(X, decor=F){
     p = p, 
     varnames = dimnames(X)[[2]]
   )
+  pdag = getGraph(adjmat_fgesCPDAG_X)
+  dag = pdag2dag(pdag)
+  # Adjacency Matrix G:
+  # G[i,j] = 1/2 if edge mark of edge i-j at j is head(kid)/tail(parent).
+  dag_adj = showAmat(dag$graph)
+  mle_result = get_mle_gespc(X = X, dag_adj = dag_adj)
+  BIC_result_GES <- BIC_dag(
+    X = X,
+    block_idx = block_idx,
+    bmle = mle_result$Bmle,
+    omgmle = mle_result$omgmlesq,
+    theta = diag(n)
+  )
   if(decor){
     saveRDS(adjmat_fgesCPDAG_X, file = 'adjmat_fges_CPDAG_decor.rds')  
+    saveRDS(mle_result, file = "fGES_mle_result_decor.rds")
+    saveRDS(BIC_result_GES, 'fGES_BIC_result_decor.rds')
   }else{
     saveRDS(adjmat_fgesCPDAG_X, file = 'adjmat_fges_CPDAG.rds')  
+    saveRDS(mle_result, file = "fGES_mle_result.rds")
+    saveRDS(BIC_result_GES, 'fGES_BIC_result.rds')
   }
 }
 
-pc_sol <- function(X, decor=F){
+pc_sol <- function(
+  X,
+  block_idx,
+  decor=F
+){
   n <- dim(X)[1]
   p <- dim(X)[2]
   suffstat <- list(C = cor(X), n = n)
@@ -700,11 +726,25 @@ pc_sol <- function(X, decor=F){
     labels = dimnames(X)[[2]]
   )
   adjmat_pc_CPDAG <- as(res_pc, "amat")
+  dag_pc = pdag2dag(res_pc@graph)
+  dag_adj_pc = showAmat(dag_pc$graph)
+  mle_result = get_mle_gespc(X = X, dag_adj = dag_adj_pc)
+  BIC_result_PC <- BIC_dag(
+    X = X,
+    block_idx = block_idx,
+    bmle = mle_result$Bmle,
+    omgmle = mle_result$omgmlesq,
+    theta = diag(n)
+  )
   if(decor){
     saveRDS(adjmat_pc_CPDAG, file = 'adjmat_pc_CPDAG_decor.rds')
+    saveRDS(mle_result, file = "pc_mle_result_decor.rds")
+    saveRDS(BIC_result_PC, 'pc_BIC_result_decor.rds')
   }
   else{
     saveRDS(adjmat_pc_CPDAG, file = 'adjmat_pc_CPDAG.rds')  
+    saveRDS(mle_result, file = "pc_mle_result.rds")
+    saveRDS(BIC_result_PC, 'pc_BIC_result.rds')
   }
 }
 
@@ -926,9 +966,6 @@ reorder_data <- function(
   sub_grp,
   targetgene
 ){
-  # if(any(table(sub_grp) == 1)){
-  #   stop('Too many blocks!')
-  # }
   if(!assertthat::are_equal(dim(targetgene)[2], 51)){
     stop('Dimension of target gene is incorrect!!!')
   }
@@ -940,7 +977,7 @@ reorder_data <- function(
     block_rownames[[i]] = names(sub_grp[which(sub_grp == group_idx[i])])
   }
   block_idx = vector(mode = 'list', length = length(group_idx))
-  newdf <- targetgene_small[block_rownames[[1]],]
+  newdf <- targetgene_small[block_rownames[[1]],,drop=F]
   carry = 0
   block_idx[[1]] <- 1:length(block_rownames[[1]]) + carry 
   carry <-  length(block_idx[[1]])
@@ -971,8 +1008,9 @@ two_step_cluster <- function(
     cell.tree <- hclust(cell.dist, method="complete")
     sub_grp <- cutree(cell.tree, h = 1-corr_thr[i])
     saveRDS(table(sub_grp), file = paste0('sub_grp_', i, '.rds'))
-    print(max(table(sub_grp)))
+    cat("[INFO] Cell type", i, ". Size of the largest cluster is: ", max(table(sub_grp)), "\n")
     targetgene_subset <- targetgene[(rownames(targetgene) %in% names(sub_grp)), ]  
+    # reorder the rows here so that theta is block-diagonal
     df_tmp <- reorder_data(sub_grp = sub_grp, targetgene = targetgene_subset)  
     if(i == 1){
       resdf <- df_tmp$df
@@ -986,5 +1024,33 @@ two_step_cluster <- function(
   return(list(
     df = resdf,
     block_idx = reslist
+  ))
+}
+
+get_mle_gespc <- function(X, dag_adj){
+  n = dim(X)[1]
+  p = dim(X)[2]
+  bhat = matrix(0, p, p)
+  omg_new_sq <- rep(0,p)
+  names(omg_new_sq) = dimnames(dag_adj)[[1]]
+  dimnames(bhat) = dimnames(dag_adj)
+  if(!all(dimnames(bhat)[[1]] == dimnames(X)[[2]])){
+    stop('Node names in X and dag_adj dont match!! \n')
+  }
+  for(node in colnames(X)){
+    y = X[, node]
+    par = names(which(dag_adj[node, ] == 2))
+    if(length(par) != 0){
+      x = X[, par]
+      b = lm(y~x-1)
+      bhat[par, node] = coef(b)  
+      omg_new_sq[node] = sum(b$residuals^2) / n
+    }else{
+      omg_new_sq[node] = sum(y^2) / n
+    }
+  }
+  return(list(
+    Bmle = bhat,
+    omgmlesq = omg_new_sq
   ))
 }
