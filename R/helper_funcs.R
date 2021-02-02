@@ -166,7 +166,11 @@ dag_mle_estimation <- function(Bhat, Lhat, X){
       omg_new_sq[j] <- sum(Xnew[,j]^2)/n
     }
   }
-  dimnames(Bnew) <- list(as.character(1:p), as.character(1:p))
+  if(is.null(dimnames(Bhat))){
+    dimnames(Bnew) <- list(as.character(1:p), as.character(1:p))  
+  }else{
+    dimnames(Bnew) <- dimnames(Bhat)
+  }
   thresh <- thresh/sum(Bnew!=0)
   return(list(Bmle = Bnew,
               omgmlesq = omg_new_sq,
@@ -189,7 +193,6 @@ BIC_dag <- function(X, block_idx, bmle, omgmle, theta){
   }else{
     thetatrm <- - p*log(det(theta))
   }
-  
   negloglikelihood <- n*sum(log(omgmle)) + thetatrm + tracetrm
   # fn <- log(max(n,p)) * (s0 + t0) 
   fn <- 1 * (s0 + t0) 
@@ -198,8 +201,8 @@ BIC_dag <- function(X, block_idx, bmle, omgmle, theta){
               negloglikelihood = negloglikelihood,
               s0 = s0,
               penalty=fn,
-              thetatrm=thetatrm,
-              trace = tracetrm))
+              thetatrm=thetatrm
+  ))
 }
 
 # GES ---------------------------------------------------------------------

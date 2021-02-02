@@ -770,17 +770,39 @@ get_Xdecor <- function(Xp, best_bic_predefined = NULL){
 }
 
 
-sparsebn_sol <- function(X, decor=F){
+sparsebn_sol <- function(
+  X,
+  block_idx,
+  decor=F
+){
+  n <- dim(X)[1]
+  p <- dim(X)[2]
   sbX <- sparsebnData(X, type = "continuous")
   sb_path <- estimate.dag(sbX, verbose = F)
   sol_idx <- select.parameter(sb_path, sbX)
-  sol_base <- select(sb_path, index = sol_idx)
+  # sol_base <- select(sb_path, index = sol_idx)
+  sol_base <- sb_path[[sol_idx]]
   adjmat_sbbase <- get.adjacency.matrix(sol_base) %>% as.matrix()
+  pdag = getGraph(adjmat_sbbase)
+  dag_sbn = pdag2dag(pdag)
+  dag_adj_sbn = showAmat(dag_sbn$graph)
+  mle_result = get_mle_gespc(X = X, dag_adj = dag_adj_sbn)
+  BIC_result_sbn <- BIC_dag(
+    X = X,
+    block_idx = block_idx,
+    bmle = mle_result$Bmle,
+    omgmle = mle_result$omgmlesq,
+    theta = diag(n)
+  )
   if(decor){
     saveRDS(adjmat_sbbase, file = 'adjmat_sparsebn_CPDAG_decor.rds')
+    saveRDS(mle_result, file = "sbn_mle_result_decor.rds")
+    saveRDS(BIC_result_sbn, 'sbn_BIC_result_decor.rds')
   }
   else{
     saveRDS(adjmat_sbbase, file = 'adjmat_sparsebn_CPDAG.rds')  
+    saveRDS(mle_result, file = "sbn_mle_result.rds")
+    saveRDS(BIC_result_sbn, 'sbn_BIC_result.rds')
   }
 }
 
