@@ -12,13 +12,14 @@
   p <- dim(X)[2]
   thetahat <- diag(n)
   num_blocks <- length(zeropos_list)
-  # X_iid <- X[seq(1, n, by = block_size),]
+  
   if(!is.null(block_idx)){
     N <- length(block_idx)
     iid_idx <- sapply(sim_data$block_idx, FUN = sample, size=1)
     X_iid <- X[iid_idx, ]
   }else{
-    X_iid <- X  
+    X_iid <- X
+    # X_iid <- X[seq(1, n, by = block_size),]
   }
   omega2_hat_iid <- estimate_omega_square(X_iid)
   old_hbeta <- matrix(0, p, p)
@@ -203,11 +204,12 @@ estimate_theta <- function(
         zeros = NULL
       temp_sig <- glasso(s = S[(1+block_size*(i-1)) : min(block_size*i,n), 
                                (1+block_size*(i-1)) : min(block_size*i,n)],
-                         thr = 1.0e-7,
+                         nobs = p,
                          rho = lambda2/p,
                          zero = zeros,
                          penalize.diagonal = T)
-      sig.blocks[[i]] <- cov2cor(temp_sig$w)
+      # sig.blocks[[i]] <- cov2cor(temp_sig$w)
+      sig.blocks[[i]] <- temp_sig$w
     }    
   }
   sig.est <- as.matrix(do.call(bdiag, sig.blocks))
@@ -308,7 +310,7 @@ networkDAG_sol_path <- function(
   saveRDS(lambda.path, file = "lambda_path.rds")
   BICscores_main <- minrowcor_main <- rep(0, length(lambda.path))
   BICscores_1iter_main <- minrowcor_1iter_main <- rep(0, length(lambda.path))
-  BICscores_baseline <- rep(0, length(lambda.path))
+  BICscores_baseline <- minrowcor_baseline <- rep(0, length(lambda.path))
   for(k in 1:length(lambda.path)){
     set.seed(1)
     cat(paste0("===============================================================","\n"))
@@ -333,6 +335,8 @@ networkDAG_sol_path <- function(
     minrowcor_main[k] <- sum(abs(cor_est[upper.tri(cor_est)]))
     cor_est_1iter <- cor(t(chol(res$thetahat_1iter)%*%(X - X%*%res$bhat_1iter)))
     minrowcor_1iter_main[k] <- sum(abs(cor_est_1iter[upper.tri(cor_est_1iter)]))
+    cor_est_baseline <- cor(t(X - X%*%res$bhat_1iter))
+    minrowcor_baseline[k] <- sum(abs(cor_est_baseline[upper.tri(cor_est_baseline)]))
     mle_result <- dag_mle_estimation(
       X = X, 
       Bhat = res$bhat, 
@@ -375,16 +379,16 @@ networkDAG_sol_path <- function(
       theta = diag(n)
     )
     BICscores_baseline[k] <- BIC_baseline_result$BIC
+    saveRDS(BIC_baseline_result, paste0('BIC_baseline_result_', k, '.rds'))
+    saveRDS(BIC_result, paste0('BIC_main_result_', k, '.rds'))
+    saveRDS(BIC_1iter_result,  paste0('BIC_1iter_result_', k, '.rds'))
   }
-  saveRDS(BIC_baseline_result, 'BIC_baseline_result.rds')
-  saveRDS(BIC_result, 'BIC_main_result.rds')
-  saveRDS(BIC_1iter_result, 'BIC_1iter_result.rds')
-  
   saveRDS(BICscores_main, "BICscores_main.rds")
   saveRDS(minrowcor_main, "minrowcor_main.rds")
   saveRDS(BICscores_1iter_main, "BICscores_1iter_main.rds")
   saveRDS(minrowcor_1iter_main, "minrowcor_1iter_main.rds")
   saveRDS(BICscores_baseline, "BICscores_baseline.rds")
+  saveRDS(minrowcor_baseline, "minrowcor_baseline.rds")
 }
 # 
 # bench_sol_path <- function(
@@ -450,12 +454,17 @@ sim_newalgo_ordered <- function(
   for(sim in start_sim:end_sim){
     dir.create(path = paste0("output/",args$setting, "/", args$setting, "--", sim))
     setwd(paste0("output/",args$setting, "/", args$setting, "--", sim))
-    X_ <- sim_X(vers = sim, 
-                n = args$n,
-                p = estimands$realp,
-                omg.sq = estimands$omg.sq,
-                sig = estimands$sig, 
-                b = estimands$b)
+    con <- file("test.log")
+    sink(con, append=TRUE)
+    sink(con, append=TRUE, type="message")
+    X_ <- sim_X(
+      vers = sim, 
+      n = args$n,
+      p = estimands$realp,
+      omg.sq = estimands$omg.sq,
+      sig = estimands$sig, 
+      b = estimands$b
+    )
     saveRDS(X_, file = "X.rds")
     X <- X_$X
     networkDAG_sol_path(
@@ -463,8 +472,12 @@ sim_newalgo_ordered <- function(
       block_size=args$block_size, 
       zeropos_list = estimands$zeropos_list,
       lambda_len = lamLen,
-      lambda1_max_div = lambda1_max_div
+      lambda1_max_div = lambda1_max_div,
+      maxIter = 30,
+      lambda2 = 0.01
     )
+    sink() 
+    sink(type="message")
     setwd("~/Documents/research/dag_network")
   }
 }
@@ -475,6 +488,8 @@ get_shd_ordered <- function(
   kmaincor = NULL, 
   kbenchbic = NULL, 
   kbenchcor = NULL,
+  k1iterbic = NULL,
+  k1itercor = NULL,
   sim,
   simID,
   bstar_adj, 
@@ -484,9 +499,26 @@ get_shd_ordered <- function(
   thresh = 0.1
 ){
   output_ordered <- vector(mode = "list")
-  # main --------------------------------------------------------------------
   n <- dim(theta0)[1]
   p <- dim(b0)[1]
+
+  # 1iter -------------------------------------------------------------------
+  # BIC
+  main1iter_best_bic <- readRDS(file = paste0(simID, '--', sim, '/main_lam_', kmainbic, '.rds'))
+  bhat_adj <- 1*(abs(main1iter_best_bic$bhat_1iter) > thresh)
+  shdXmain1iter <- compute_SHD_dag(adj1 = bhat_adj, adj_true = bstar_adj, s0) %>% unlist()
+  shdXmain1iter['beta_l2err'] = norm(b0 - main1iter_best_bic$bhat_1iter, type = '2')^2 / s0
+  shdXmain1iter['theta_l2err'] = norm(theta0 - main1iter_best_bic$thetahat_1iter, type = '2')^2 / n^2
+  output_ordered$shdXmain1iter=shdXmain1iter
+  
+  #minCor
+  main1iter_best_cor <- readRDS(file = paste0(simID, '--', sim, '/main_lam_', k1itercor, '.rds'))
+  bhat_adj <- 1*(abs(main1iter_best_cor$bhat_1iter) > thresh)
+  shdXmain1iterCor <- compute_SHD_dag(adj1 = bhat_adj, adj_true = bstar_adj, s0) %>% unlist()
+  shdXmain1iterCor['beta_l2err'] = norm(b0 - main1iter_best_cor$bhat_1iter, type = '2')^2 / s0
+  shdXmain1iterCor['theta_l2err'] = norm(theta0 - main1iter_best_cor$thetahat_1iter, type = '2')^2 / n^2
+  output_ordered$shdXmain1iterCor=shdXmain1iterCor
+  # main --------------------------------------------------------------------
   # BIC
   main_best_bic <- readRDS(file = paste0(simID, '--', sim, '/main_lam_', kmainbic, '.rds'))
   bhat_adj <- 1*(abs(main_best_bic$bhat) > thresh)
@@ -506,15 +538,16 @@ get_shd_ordered <- function(
   baseline_best_bic <- readRDS(file = paste0(simID, '--', sim, '/main_lam_', kbenchbic, '.rds'))
   bhat_adj <- 1*(abs(baseline_best_bic$bhat_1iter) > thresh)
   shdXbaseline <- compute_SHD_dag(adj1 = bhat_adj, adj_true = bstar_adj, s0) %>% unlist()
-  shdXbaseline['beta_l2err'] = norm(b0 - baseline_best_bic$bhat, type = '2')^2 / s0
-  shdXbaseline['theta_l2err'] = norm(theta0 - baseline_best_bic$thetahat, type = '2')^2 / n^2
+  shdXbaseline['beta_l2err'] = norm(b0 - baseline_best_bic$bhat_1iter, type = '2')^2 / s0
+  shdXbaseline['theta_l2err'] = -100
   output_ordered$shdXbaseline=shdXbaseline
   # minCor
   baseline_best_cor <- readRDS(file = paste0(simID, '--', sim, '/main_lam_', kbenchcor, '.rds'))
   bhat_adj <- 1*(abs(baseline_best_cor$bhat_1iter) > thresh)
   shdXbaselineCor <- compute_SHD_dag(adj1 = bhat_adj, adj_true = bstar_adj, s0) %>% unlist()
-  shdXbaselineCor['beta_l2err'] = norm(b0 - baseline_best_cor$bhat, type = '2')^2 / s0
-  shdXbaselineCor['theta_l2err'] = norm(theta0 - baseline_best_cor$thetahat, type = '2')^2 / n^2
+  shdXbaselineCor['beta_l2err'] = norm(b0 - baseline_best_cor$bhat_1iter, type = '2')^2 / s0
+  # shdXbaselineCor['theta_l2err'] = norm(theta0 - baseline_best_cor$thetahat, type = '2')^2 / n^2
+  shdXbaselineCor['theta_l2err'] = -100
   output_ordered$shdXbaselineCor = shdXbaselineCor
   return(output_ordered)  
 }
@@ -531,11 +564,18 @@ process_output_ordered <- function(
   bstar_adj <- 1*(abs(estimands$b) > 0)
   for(sim in 1:args$num_sim){
     BICscores_main <- readRDS(paste0(simID, '--', sim, '/BICscores_main.rds'))  
-    minrowcor_main <- readRDS(paste0(simID, '--', sim, '/minrowcor_main.rds'))  
-    BICscores_baseline <- readRDS(paste0(simID, '--', sim, '/BICscores_1iter_main.rds'))  
-    minrowcor_baseline <- readRDS(paste0(simID, '--', sim, '/minrowcor_1iter_main.rds'))  
+    minrowcor_main <- readRDS(paste0(simID, '--', sim, '/minrowcor_main.rds'))
+    
+    BICscores_main1iter <- readRDS(paste0(simID, '--', sim, '/BICscores_1iter_main.rds'))  
+    minrowcor_main1iter <- readRDS(paste0(simID, '--', sim, '/minrowcor_1iter_main.rds'))  
+    
+    BICscores_baseline <- readRDS(paste0(simID, '--', sim, '/BICscores_baseline.rds')) 
+    minrowcor_baseline <- readRDS(paste0(simID, '--', sim, '/minrowcor_baseline.rds'))
+    
     bestk_bic_main <- which.min(BICscores_main)
     bestk_cor_main <- which.min(minrowcor_main)
+    bestk_bic_1iter <- which.min(BICscores_main1iter)
+    bestk_cor_1iter <- which.min(minrowcor_1iter)
     bestk_bic_baseline <- which.min(BICscores_baseline)
     bestk_cor_baseline <- which.min(minrowcor_baseline)
     SHD_stats <- get_shd_ordered(
@@ -543,6 +583,8 @@ process_output_ordered <- function(
       kmaincor = bestk_cor_main, 
       kbenchbic = bestk_bic_baseline, 
       kbenchcor = bestk_cor_baseline,
+      k1iterbic = bestk_bic_1iter,
+      k1itercor = bestk_cor_1iter,
       sim = sim,
       simID = simID,
       bstar_adj = bstar_adj, 
@@ -562,26 +604,37 @@ get_all_shd_ordered <- function(
   estimands,
   num_sim
 ){
+  #' 
   thrs <- seq(0, 0.5,length.out = 10)
   allShdS <- vector(mode = "list", length = length(thrs))
   bstar_adj <- 1*(abs(estimands$b) > 0)
   for(sim in 1:num_sim){
     setwd(paste0("output/",simID))
     allshd <- readRDS(paste0(simID, "--", sim, '/SHDstats.rds'))
-    BICscores_bench <- readRDS(paste0(simID, "--", sim, "/BICscores_1iter_main.rds"))
-    minrowcor_bench <- readRDS(paste0(simID, "--", sim, "/minrowcor_1iter_main.rds"))
+    BICscores_baseline <- readRDS(paste0(simID, "--", sim, "/BICscores_baseline.rds"))
+    minrowcor_baseline <- readRDS(paste0(simID, "--", sim, "/minrowcor_baseline.rds"))
+    
+    minrowcor_1iter <- readRDS(paste0(simID, "--", sim, "/minrowcor_1iter_main.rds"))
+    BICscores_1iter <- readRDS(paste0(simID, "--", sim, "/BICscores_1iter_main.rds"))
+    
     BICscores_main <- readRDS(paste0(simID, "--", sim, "/BICscores_main.rds"))
     minrowcor_main <- readRDS(paste0(simID, "--", sim, "/minrowcor_main.rds"))
+    
     bestk_bic_main <- which.min(BICscores_main)
     bestk_cor_main <- which.min(minrowcor_main)
-    bestk_bic_baseline <- which.min(BICscores_bench)
-    bestk_cor_baseline <- which.min(minrowcor_bench)
+    bestk_bic_baseline <- which.min(BICscores_baseline)
+    bestk_cor_baseline <- which.min(minrowcor_baseline)
+    bestk_bic_1iter <- which.min(BICscores_1iter)
+    bestk_cor_1iter <- which.min(minrowcor_1iter)
+    
     for(j in 1:length(thrs)){
       allShdS[[j]] <- get_shd_ordered(
         kmainbic = bestk_bic_main, 
         kmaincor = bestk_cor_main, 
         kbenchbic = bestk_bic_baseline, 
         kbenchcor = bestk_cor_baseline,
+        k1iterbic = bestk_bic_1iter,
+        k1itercor = bestk_cor_1iter,
         sim = sim,
         simID = simID,
         bstar_adj = bstar_adj, 
@@ -623,8 +676,10 @@ get_average_shd_ordered <- function(simID, nsim){
     row.names = names(SHDres[[1]]), 
     shdXmain=rep(0, num_statistic),
     shdXbaseline=rep(0, num_statistic),
+    shdXmain1iter=rep(0, num_statistic),
     shdXmainCor=rep(0, num_statistic),
-    shdXbaselineCor=rep(0, num_statistic)
+    shdXbaselineCor=rep(0, num_statistic),
+    shdXmain1iterCor=rep(0, num_statistic)
   )
   for (sim in 1:nsim){
     allshd <- as.data.frame(
@@ -666,7 +721,9 @@ get_average_shd_unordered <- function(simID, nsim){
 
 GES_sol <- function(
   X, 
-  block_idx,
+  originalX,
+  thetahat,
+  block_idx=NULL,
   decor=F
 ){
   n <- dim(X)[1]
@@ -693,11 +750,11 @@ GES_sol <- function(
   dag_adj = showAmat(dag$graph)
   mle_result = get_mle_gespc(X = X, dag_adj = dag_adj)
   BIC_result_GES <- BIC_dag(
-    X = X,
+    X = originalX,
     block_idx = block_idx,
     bmle = mle_result$Bmle,
     omgmle = mle_result$omgmlesq,
-    theta = diag(n)
+    theta = thetahat
   )
   if(decor){
     saveRDS(adjmat_fgesCPDAG_X, file = 'adjmat_fges_CPDAG_decor.rds')  
@@ -712,7 +769,9 @@ GES_sol <- function(
 
 pc_sol <- function(
   X,
-  block_idx,
+  thetahat,
+  originalX,
+  block_idx=NULL,
   decor=F
 ){
   n <- dim(X)[1]
@@ -730,11 +789,11 @@ pc_sol <- function(
   dag_adj_pc = showAmat(dag_pc$graph)
   mle_result = get_mle_gespc(X = X, dag_adj = dag_adj_pc)
   BIC_result_PC <- BIC_dag(
-    X = X,
+    X = originalX,
     block_idx = block_idx,
     bmle = mle_result$Bmle,
     omgmle = mle_result$omgmlesq,
-    theta = diag(n)
+    theta = thetahat
   )
   if(decor){
     saveRDS(adjmat_pc_CPDAG, file = 'adjmat_pc_CPDAG_decor.rds')
@@ -751,8 +810,11 @@ pc_sol <- function(
 get_Xdecor <- function(Xp, best_bic_predefined = NULL){
   bic_score <- readRDS('BICscores_main.rds')
   bic_score_1iter <- readRDS('BICscores_1iter_main.rds')
+  bic_score_baseline <- readRDS('BICscores_baseline.rds')
+  
   best_bic <- which.min(bic_score)
   best_bic_1iter <- which.min(bic_score_1iter)
+  best_bic_baseline <- which.min(bic_score_baseline)
   cat('[INFO] lambda index for the best BIC: ',
       best_bic, "|", paste0(best_bic_1iter, " (1iter)"),"\n")
   if(!is.null(best_bic_predefined)){
@@ -766,13 +828,22 @@ get_Xdecor <- function(Xp, best_bic_predefined = NULL){
   X_decor_1iter <- chol(best_res_1iter$thetahat) %*% Xp
   dimnames(X_decor) <- dimnames(Xp)
   dimnames(X_decor_1iter) <- dimnames(Xp)
-  return(list(X_decor=X_decor, X_decor_1iter=X_decor_1iter))
+  return(list(
+    X_decor=X_decor,
+    X_decor_1iter=X_decor_1iter,
+    thehat = best_res$thetahat,
+    thehat1iter = best_res_1iter$thetahat,
+    best_bic = best_bic,
+    best_bic_1iter=best_bic_1iter,
+    best_bic_baseline=best_bic_baseline))
 }
 
 
 sparsebn_sol <- function(
   X,
-  block_idx,
+  thetahat,
+  originalX,
+  block_idx=NULL,
   decor=F
 ){
   n <- dim(X)[1]
@@ -788,11 +859,11 @@ sparsebn_sol <- function(
   dag_adj_sbn = showAmat(dag_sbn$graph)
   mle_result = get_mle_gespc(X = X, dag_adj = dag_adj_sbn)
   BIC_result_sbn <- BIC_dag(
-    X = X,
+    X = originalX,
     block_idx = block_idx,
     bmle = mle_result$Bmle,
     omgmle = mle_result$omgmlesq,
-    theta = diag(n)
+    theta = thetahat
   )
   if(decor){
     saveRDS(adjmat_sbbase, file = 'adjmat_sparsebn_CPDAG_decor.rds')
@@ -812,10 +883,15 @@ sim_newalgo_unordered <- function(
   estimands, 
   start_sim=1, 
   end_sim=args$num_sim, 
-  lamLen=15){
+  lambda1_max_div=50,
+  lamLen=15
+){
   for(sim in start_sim:end_sim){
     dir.create(path = paste0("output/",args$setting, "/", args$setting, "--", sim))
     setwd(paste0("output/",args$setting, "/", args$setting, "--", sim))
+    con <- file("test.log")
+    sink(con, append=TRUE)
+    sink(con, append=TRUE, type="message")
     X_ <- sim_X(vers = sim, 
                 n = args$n,
                 p = estimands$realp,
@@ -829,24 +905,43 @@ sim_newalgo_unordered <- function(
     saveRDS(XXp, file = "Xp.rds")
     # Other methods -----------------------------------------------------------
     cat('[INFO] Running GES... \n')
-    GES_sol(Xp, decor = F)
+    GES_sol(Xp, originalX = Xp, thetahat = diag(args$n), decor = F)
     cat('[INFO] Running PC... \n')
-    pc_sol(Xp, decor = F)
+    pc_sol(Xp, originalX = Xp, thetahat = diag(args$n), decor = F)
     cat('[INFO] Running sparsebn... \n')
-    sparsebn_sol(Xp, decor = F)
+    sparsebn_sol(Xp, originalX = Xp, thetahat = diag(args$n), decor = F)
     # NetworkDAG --------------------------------------------------------------
     networkDAG_sol_path(
       X = Xp, 
       block_size=args$block_size, 
       zeropos_list = estimands$zeropos_list,
-      lambda_len = lamLen,
-      maxIter = 100
-    )
+      lambda_len = lamLen, 
+      lambda1_max_div = lambda1_max_div,
+      lambda2 = 0.01,
+      maxIter = 30
+    ) 
     # decorrelation -----------------------------------------------------------
     Xdecor <- get_Xdecor(Xp)
-    GES_sol(Xdecor, decor = T)
-    pc_sol(Xdecor, decor = T)
-    sparsebn_sol(Xdecor, decor = T)
+    GES_sol(
+      X = Xdecor$X_decor,
+      originalX = Xp,
+      thetahat = Xdecor$thehat,
+      decor = T
+    )
+    pc_sol(
+      X = Xdecor$X_decor,
+      originalX = Xp,
+      thetahat = Xdecor$thehat,
+      decor = T
+    )
+    sparsebn_sol(
+      X = Xdecor$X_decor,
+      originalX = Xp,
+      thetahat = Xdecor$thehat,
+      decor = T
+    )
+    sink() 
+    sink(type="message")
     setwd("~/Documents/research/dag_network")  
   }
 }

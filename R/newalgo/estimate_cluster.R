@@ -68,7 +68,7 @@ dir.create(path = paste0("~/Documents/research/dag_network/output/single_cell",s
 setwd(dir = paste0("~/Documents/research/dag_network/output/single_cell", sim_name))
 
 # saveRDS(clusters, 'clusters.rds')
-set.seed(1)
+set.seed(2)
 othergenes <- sample_n(as.data.frame(goodgene_exclude_target), 8000) %>% 
   as.matrix() #  2000 x 1018
 othergenes %>% dim()
@@ -105,25 +105,43 @@ sink(type="message")
 
 Xdecor_res <- get_Xdecor(X)
 
-BIC_main_result <- readRDS(paste0("~/Documents/research/dag_network/output/single_cell", sim_name, "/BIC_main_result.rds"))
+BIC_main_result <- readRDS(paste0("~/Documents/research/dag_network/output/single_cell", sim_name, "/BIC_main_result_", Xdecor_res$best_bic,".rds"))
 BIC_main_result %>% unlist()
-BIC_1iter_result <- readRDS(paste0("~/Documents/research/dag_network/output/single_cell", sim_name, "/BIC_1iter_result.rds"))
+BIC_1iter_result <- readRDS(paste0("~/Documents/research/dag_network/output/single_cell", sim_name, "/BIC_1iter_result_", Xdecor_res$best_bic_1iter, ".rds"))
 BIC_1iter_result %>% unlist()
-BIC_baseline_result <- readRDS(paste0("~/Documents/research/dag_network/output/single_cell", sim_name, "/BIC_baseline_result.rds"))
+BIC_baseline_result <- readRDS(paste0("~/Documents/research/dag_network/output/single_cell", sim_name, "/BIC_baseline_result_", Xdecor_res$best_bic_baseline, ".rds"))
 BIC_baseline_result %>% unlist()
 # estimate CPDAG ----------------------------------------------------------
 
-GES_sol(X, block_idx = sim_data$block_idx, decor = F)
-GES_sol(Xdecor_res$X_decor, block_idx = sim_data$block_idx, decor = T)
+GES_sol(X, originalX = X, block_idx = sim_data$block_idx, thetahat = diag(dim(X)[1]), decor = F)
+GES_sol(
+  X = Xdecor_res$X_decor,
+  originalX = X,
+  thetahat = Xdecor_res$thehat,
+  block_idx = sim_data$block_idx, 
+  decor = T
+)
 # GES_sol(Xdecor_res$X_decor_1iter, decor = T)
-pc_sol(X, block_idx = sim_data$block_idx, decor = F)
-pc_sol(Xdecor_res$X_decor, block_idx = sim_data$block_idx, decor = T)
-sparsebn_sol(X, block_idx = sim_data$block_idx, decor = F)
-sparsebn_sol(Xdecor_res$X_decor, block_idx = sim_data$block_idx, decor = T)
+pc_sol(X, originalX = X, block_idx = sim_data$block_idx, thetahat = diag(dim(X)[1]), decor = F)
+pc_sol(
+  X = Xdecor_res$X_decor,
+  originalX = X,
+  thetahat = Xdecor_res$thehat,
+  block_idx = sim_data$block_idx, 
+  decor = T
+)
+sparsebn_sol(X, originalX = X, block_idx = sim_data$block_idx, thetahat = diag(dim(X)[1]), decor = F)
+sparsebn_sol(
+  X = Xdecor_res$X_decor,
+  originalX = X,
+  thetahat = Xdecor_res$thehat,
+  block_idx = sim_data$block_idx, 
+  decor = T
+)
 
-bic_baseline <- readRDS("BIC_baseline_result.rds")
-bic_1iter <- readRDS("BIC_1iter_result.rds")
-bic_main <- readRDS("BIC_main_result.rds")
+bic_main <- readRDS(paste0("BIC_main_result_", Xdecor_res$best_bic,".rds"))
+bic_1iter <- readRDS(paste0("BIC_1iter_result_", Xdecor_res$best_bic_1iter,".rds"))
+bic_baseline <- readRDS(paste0("BIC_baseline_result_", Xdecor_res$best_bic_baseline,".rds"))
 bic_ges <- readRDS("fGES_BIC_result.rds")
 bic_pc <- readRDS("pc_BIC_result.rds")
 bic_sbn <- readRDS("sbn_BIC_result.rds")
@@ -161,38 +179,10 @@ plot_cpdag(sbndag_original)
 plot_cpdag(sbndag,rescale = T)
 
 
-# test --------------------------------------------------------------------
+# chi-square test --------------------------------------------------------------------
 
-
-
-X = apply(sim_data$df, 2, scale, scale=F)
-rownames(X) <- rownames(sim_data$df)
-
-block_size=NULL
-zeropos_list = NULL
-block_idx = sim_data$block_idx
-lambda_len = 10
-lambda2 = 200
-lambda1_max_div = 3000
-maxIter = 100
-
-k=8
-lambda1 = lambda.path[k]
-tol = 1e-7
-
-
-X = X 
-homega = sqrt(omega2_hat_iid)
-hbeta = bhat 
-htheta = thetahat
-S = S 
-lam1 = lambda1
-lam2 = lambda2
-
-res = 1
-for(i in 1:length(block_idx)){
-  tmp = det(htheta[block_idx[[i]], block_idx[[i]]])
-  print(tmp)
-  res = res * tmp
-}
-
+lambda <- -2 * (all_bic['negloglikelihood','bic_ges_decor'] - all_bic['negloglikelihood','bic_ges'])
+lambda <- -2 * (-35243.8 -  -35187 )
+k = bic_ges_decor$penalty - bic_ges$penalty
+p = 1 - pchisq(lambda, k)
+p
