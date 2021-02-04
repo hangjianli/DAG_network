@@ -191,7 +191,7 @@ BIC_dag <- function(X, block_idx, bmle, omgmle, theta){
   if(!is.null(block_idx)){
     thetatrm <- -p*sum(sapply(block_idx, function(x){log(det(as.matrix(theta[x,x])))}))  
   }else{
-    thetatrm <- - p*log(det(theta))
+    thetatrm <- -p*log(det(theta))
   }
   negloglikelihood <- n*sum(log(omgmle)) + thetatrm + tracetrm
   # fn <- log(max(n,p)) * (s0 + t0) 

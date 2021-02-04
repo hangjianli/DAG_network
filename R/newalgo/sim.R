@@ -34,47 +34,10 @@ get_average_shd_ordered(simID = simID, nsim = as.numeric(args$num_sim))
 # unordered 
 setwd("~/Documents/research/dag_network")
 simID <- args$setting
-sim_newalgo_unordered(args, estimands, start_sim=1, end_sim=10, lamLen=10)
+sim_newalgo_unordered(args, estimands, start_sim=1, end_sim=args$num_sim, lamLen=10, lambda1_max_div = 100)
 process_output_unordered(simID = simID, thr = 0.1, nsim = args$num_sim)
 get_average_shd_unordered(simID = simID, nsim = as.numeric(args$num_sim))
 
-# single cell data --------------------------------------------------------
-
-n <- dim(X$X)[1]
-BIC_dag(
-  X = X$X,
-  bmle = estimands$b, 
-  omgmle = estimands$omg.sq,
-  theta = diag(n)
-)
-
-
-BIC_dag(
-  X = X$X,
-  bmle = estimands$b, 
-  omgmle = estimands$omg.sq,
-  theta = estimands$theta
-)
-
-# hierarchical clustering here---------------------------------------------
-num_blocks = 5
-res$subsetXp %>% dim()
-
-# outsidedata <- othergenes[rownames(othergenes) %in% rownames(res$subsetXp), ]
-outsidedata <- othergenes[rownames(othergenes) %in% rownames(res), ]
-
-d <- dist(scale(outsidedata), method = "euclidean")
-hc1 <- hclust(d, method = "complete")
-# plot(hc1, cex = 0.6, hang = -1)
-sub_grp <- cutree(hc1, k = num_blocks)
-table(sub_grp)
-if(any(table(sub_grp) == 1)){
-  warnings('Too many blocks!')
-}
-block_idx = vector(mode = 'list', length = num_blocks)
-for(i in 1:num_blocks){
-  block_idx[[i]] = which(sub_grp == i)
-}
 
 
 # 
