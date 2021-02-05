@@ -815,6 +815,7 @@ get_Xdecor <- function(Xp, best_bic_predefined = NULL){
   best_bic <- which.min(bic_score)
   best_bic_1iter <- which.min(bic_score_1iter)
   best_bic_baseline <- which.min(bic_score_baseline)
+  
   cat('[INFO] lambda index for the best BIC: ',
       best_bic, "|", paste0(best_bic_1iter, " (1iter)"),"\n")
   if(!is.null(best_bic_predefined)){
