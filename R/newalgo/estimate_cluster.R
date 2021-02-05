@@ -17,7 +17,7 @@ sc_idx_full <- readRDS("~/Documents/research/dag_network/data/single_cell_data/s
 #   sc_idx_full = sc_idx_full,
 #   corr_thr = c(0.18, 0.16, 0.23, 0.2, 0.17, 0.185, 0.21)
 #   )
-
+corr_thr = 1 - c(0.18, 0.16, 0.23, 0.2, 0.17, 0.185, 0.21)
 
 # simple clustering -----------------------------------------------------
 
@@ -63,7 +63,7 @@ sim_data <- list(
 
 # main ---------------------------------------------------------------------
 
-sim_name = 39
+sim_name = 48
 dir.create(path = paste0("~/Documents/research/dag_network/output/single_cell",sim_name))
 setwd(dir = paste0("~/Documents/research/dag_network/output/single_cell", sim_name))
 
@@ -76,8 +76,10 @@ sim_data <- two_step_cluster(
   othergenes = othergenes,
   targetgene = targetgene,
   sc_idx_full = sc_idx_full,
-  corr_thr = rep(0.85, 7)
+  corr_thr = c(0.830, 0.840, 0.770, 0.800, 0.830, 0.815, 0.790)
 )
+
+sim_data$block_idx %>% length()
 getwd()
 # sim_data <- readRDS('sim_data.rds')
 saveRDS(sim_data, 'sim_data.rds')
@@ -96,8 +98,8 @@ networkDAG_sol_path(
   zeropos_list = NULL,
   block_idx = sim_data$block_idx,
   lambda_len = 10,
-  lambda2 = 0.01,
-  lambda1_max_div = 3000,
+  lambda2 = 200,
+  lambda1_max_div = 800,
   maxIter = 100
 )
 sink() 
@@ -181,8 +183,28 @@ plot_cpdag(sbndag,rescale = T)
 
 # chi-square test --------------------------------------------------------------------
 
-lambda <- -2 * (all_bic['negloglikelihood','bic_ges_decor'] - all_bic['negloglikelihood','bic_ges'])
-lambda <- -2 * (-35243.8 -  -35187 )
-k = bic_ges_decor$penalty - bic_ges$penalty
+lambda <- -(all_bic['negloglikelihood','bic_ges_decor'] - all_bic['negloglikelihood','bic_ges'])
+k = all_bic['penalty', 'bic_ges_decor'] - all_bic['penalty', 'bic_ges']
 p = 1 - pchisq(lambda, k)
 p
+options(scipen = 10)
+
+
+lambda <- -(all_bic['negloglikelihood','bic_pc_decor'] - all_bic['negloglikelihood','bic_pc'])
+k = all_bic['penalty', 'bic_pc_decor'] - all_bic['penalty', 'bic_pc']
+p = 1 - pchisq(lambda, k)
+p
+options(scipen = 10)
+
+
+lambda <- -(all_bic['negloglikelihood','bic_sbn_decor'] - all_bic['negloglikelihood','bic_sbn'])
+k = all_bic['penalty', 'bic_sbn_decor'] - all_bic['penalty', 'bic_sbn']
+p = 1 - pchisq(lambda, k)
+p
+options(scipen = 10)
+
+lambda <- -(all_bic['negloglikelihood','bic_main'] - all_bic['negloglikelihood','bic_baseline'])
+k = all_bic['penalty', 'bic_main'] - all_bic['penalty', 'bic_baseline']
+p = 1 - pchisq(lambda, k)
+p
+options(scipen = 10)
