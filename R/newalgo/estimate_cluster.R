@@ -1,4 +1,11 @@
+# load packages----------------------------------------------------------------
+rm(list = ls())
 setwd("~/Documents/research/dag_network/")
+source("R/loadpackages.R")
+source("R/helper_funcs.R")
+source("R/gen_params_funcs.R")
+source("R/newalgo/functions.R")
+
 
 targetgene <- readRDS("data/single_cell_data/sig_genes_log_val.rds")
 targetgene <- t(targetgene)
@@ -62,8 +69,7 @@ sim_data <- list(
 )
 
 # main ---------------------------------------------------------------------
-
-sim_name = 48
+sim_name = 49
 dir.create(path = paste0("~/Documents/research/dag_network/output/single_cell",sim_name))
 setwd(dir = paste0("~/Documents/research/dag_network/output/single_cell", sim_name))
 
@@ -76,8 +82,11 @@ sim_data <- two_step_cluster(
   othergenes = othergenes,
   targetgene = targetgene,
   sc_idx_full = sc_idx_full,
-  corr_thr = c(0.830, 0.840, 0.770, 0.800, 0.830, 0.815, 0.790)
+  method = 'single',
+  corr_thr = c(0.840, 0.850, 0.80, 0.810, 0.840, 0.82, 0.820)
+  # corr_thr = rep(0.86, 7)
 )
+
 
 sim_data$block_idx %>% length()
 getwd()
@@ -98,8 +107,8 @@ networkDAG_sol_path(
   zeropos_list = NULL,
   block_idx = sim_data$block_idx,
   lambda_len = 10,
-  lambda2 = 200,
-  lambda1_max_div = 800,
+  lambda2 = 50,
+  lambda1_max_div = 2000,
   maxIter = 100
 )
 sink() 

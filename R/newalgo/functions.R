@@ -182,7 +182,7 @@ estimate_theta <- function(
       }
       # cat('[INFO]  Processing block: ', i, '\n')
       if(length(block_idx[[i]]) < p){
-        lam2 = 0.01
+        lam2 = lambda2
         # cat('[INFO]  n < p. No penalty needed.\n')
       }else{
         lam2 = lambda2
@@ -1115,6 +1115,7 @@ two_step_cluster <- function(
   othergenes,
   targetgene,
   sc_idx_full, 
+  method = 'complete',
   corr_thr = c(0.820, 0.840, 0.770, 0.800, 0.830, 0.815, 0.780)
 ){
   if(!assertthat::are_equal(dim(targetgene)[2], 51)){
@@ -1123,9 +1124,11 @@ two_step_cluster <- function(
   for(i in 1:length(sc_idx_full)){
     cell.cor <- othergenes[, sc_idx_full[[i]]] %>% cor(use="pairwise.complete.obs")
     cell.dist <- as.dist(1 - abs(cell.cor))
-    cell.tree <- hclust(cell.dist, method="complete")
+    cell.tree <- hclust(cell.dist, method=method)
+    plot(cell.tree, cex=0.2)
     sub_grp <- cutree(cell.tree, h = 1-corr_thr[i])
     saveRDS(table(sub_grp), file = paste0('sub_grp_', i, '.rds'))
+    
     cat("[INFO] Cell type", i, ". Size of the largest cluster is: ", max(table(sub_grp)), "\n")
     targetgene_subset <- targetgene[(rownames(targetgene) %in% names(sub_grp)), ]  
     # reorder the rows here so that theta is block-diagonal
