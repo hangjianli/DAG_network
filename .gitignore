@@ -11,6 +11,7 @@ node_modules
 /figs
 /JSM_presentation
 /literature
+/data
 
 /data/*
 !/data/single_cell_data
