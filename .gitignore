@@ -16,9 +16,6 @@ causal-cmd.log
 #/data/*
 # !/data/single_cell_data
 
-/data/*
-!/data/single_cell_data
-
 # Ignore pycharm files
 .idea/*
 .idea/misc.xml
