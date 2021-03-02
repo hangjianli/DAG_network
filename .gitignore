@@ -3,6 +3,7 @@
 .Rhistory
 # Ignore node_modules folder
 node_modules
+causal-cmd.log
 
 # Ignore large output files
 /R/.Rhistory
@@ -14,6 +15,9 @@ node_modules
 /data
 #/data/*
 # !/data/single_cell_data
+
+/data/*
+!/data/single_cell_data
 
 # Ignore pycharm files
 .idea/*

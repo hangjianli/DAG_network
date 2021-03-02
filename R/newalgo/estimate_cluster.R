@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # load packages----------------------------------------------------------------
 rm(list = ls())
 setwd("~/Documents/research/dag_network/")
@@ -6,6 +7,9 @@ source("R/helper_funcs.R")
 source("R/gen_params_funcs.R")
 source("R/newalgo/functions.R")
 
+=======
+setwd("~/Documents/research/dag_network/")
+>>>>>>> 7159f389e5486eb6c58b0b36980e85bf3b41d030
 
 targetgene <- readRDS("data/single_cell_data/sig_genes_log_val.rds")
 targetgene <- t(targetgene)
@@ -86,8 +90,6 @@ sim_data <- two_step_cluster(
   corr_thr = c(0.840, 0.850, 0.80, 0.810, 0.840, 0.82, 0.820)
   # corr_thr = rep(0.86, 7)
 )
-
-
 sim_data$block_idx %>% length()
 getwd()
 # sim_data <- readRDS('sim_data.rds')

@@ -1128,7 +1128,6 @@ two_step_cluster <- function(
     plot(cell.tree, cex=0.2)
     sub_grp <- cutree(cell.tree, h = 1-corr_thr[i])
     saveRDS(table(sub_grp), file = paste0('sub_grp_', i, '.rds'))
-    
     cat("[INFO] Cell type", i, ". Size of the largest cluster is: ", max(table(sub_grp)), "\n")
     targetgene_subset <- targetgene[(rownames(targetgene) %in% names(sub_grp)), ]  
     # reorder the rows here so that theta is block-diagonal
