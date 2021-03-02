@@ -16,6 +16,9 @@ causal-cmd.log
 #/data/*
 # !/data/single_cell_data
 
+# Ignore large files
+.RData
+
 # Ignore pycharm files
 .idea/*
 .idea/misc.xml
