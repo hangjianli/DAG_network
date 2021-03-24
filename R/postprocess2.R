@@ -21,13 +21,11 @@ allShdS <- vector(mode = "list", length = length(threshes))
 
 # today_date <- as.Date("2019-05-02")
 today_date <- Sys.Date()
-
+estimands <- readRDS(paste0("output/", args$setting, "/estimands.rds"))
 
 for(sim in 1:1){
-  setwd(paste0("~/Dropbox/research/code/", args$setting,"--", sim))
-  estimands <- readRDS(paste0("~/Dropbox/research/code/", args$setting,"--", sim, "/estimands.rds"))
-  X_ <- readRDS(file = paste0(format(today_date, "%Y-%m-%d"), "-vers-",
-                            args$setting, "-X-",sim,".rds"))
+  setwd(paste0("output/", args$setting, "/", args$setting,"--", sim))
+  X_ <- readRDS(file = "X.rds")
   X <- X_$X
   n <- dim(X)[1]
   p <- dim(X)[2]
@@ -63,3 +61,8 @@ for(sim in 1:1){
   saveRDS(allShdS, file = "allshd2.rds")
   
 }
+
+
+
+
+

@@ -517,7 +517,8 @@ get_shd_ordered <- function(
   shdXmain1iterCor <- compute_SHD_dag(adj1 = bhat_adj, adj_true = bstar_adj, s0) %>% unlist()
   shdXmain1iterCor['beta_l2err'] = norm(b0 - main1iter_best_cor$bhat_1iter, type = '2')^2 / s0
   shdXmain1iterCor['theta_l2err'] = norm(theta0 - main1iter_best_cor$thetahat_1iter, type = '2')^2 / n^2
-  output_ordered$shdXmain1iterCor=shdXmain1iterCor
+  output_ordered$shdXmain1iterCor=shdXmain1iterCor  
+
   # main --------------------------------------------------------------------
   # BIC
   main_best_bic <- readRDS(file = paste0(simID, '--', sim, '/main_lam_', kmainbic, '.rds'))
@@ -536,17 +537,26 @@ get_shd_ordered <- function(
   # baseline ----------------------------------------------------------------
   # BIC
   baseline_best_bic <- readRDS(file = paste0(simID, '--', sim, '/main_lam_', kbenchbic, '.rds'))
+  # baseline_best_bic <- readRDS(file = paste0(simID, '--', sim, '/baseline_lam_', kbenchbic, '.rds'))
   bhat_adj <- 1*(abs(baseline_best_bic$bhat_1iter) > thresh)
+  # bhat_adj <- 1*(abs(baseline_best_bic$bhat) > thresh)
+  
   shdXbaseline <- compute_SHD_dag(adj1 = bhat_adj, adj_true = bstar_adj, s0) %>% unlist()
   shdXbaseline['beta_l2err'] = norm(b0 - baseline_best_bic$bhat_1iter, type = '2')^2 / s0
+  # shdXbaseline['beta_l2err'] = norm(b0 - baseline_best_bic$bhat, type = '2')^2 / s0
+  
   shdXbaseline['theta_l2err'] = -100
   output_ordered$shdXbaseline=shdXbaseline
   # minCor
   baseline_best_cor <- readRDS(file = paste0(simID, '--', sim, '/main_lam_', kbenchcor, '.rds'))
+  # baseline_best_cor <- readRDS(file = paste0(simID, '--', sim, '/baseline_lam_', kbenchcor, '.rds'))
   bhat_adj <- 1*(abs(baseline_best_cor$bhat_1iter) > thresh)
+  # bhat_adj <- 1*(abs(baseline_best_cor$bhat) > thresh)
+  
   shdXbaselineCor <- compute_SHD_dag(adj1 = bhat_adj, adj_true = bstar_adj, s0) %>% unlist()
   shdXbaselineCor['beta_l2err'] = norm(b0 - baseline_best_cor$bhat_1iter, type = '2')^2 / s0
-  # shdXbaselineCor['theta_l2err'] = norm(theta0 - baseline_best_cor$thetahat, type = '2')^2 / n^2
+  # shdXbaselineCor['beta_l2err'] = norm(b0 - baseline_best_cor$bhat, type = '2')^2 / s0
+  
   shdXbaselineCor['theta_l2err'] = -100
   output_ordered$shdXbaselineCor = shdXbaselineCor
   return(output_ordered)  
@@ -575,7 +585,7 @@ process_output_ordered <- function(
     bestk_bic_main <- which.min(BICscores_main)
     bestk_cor_main <- which.min(minrowcor_main)
     bestk_bic_1iter <- which.min(BICscores_main1iter)
-    bestk_cor_1iter <- which.min(minrowcor_1iter)
+    bestk_cor_1iter <- which.min(minrowcor_main1iter)
     bestk_bic_baseline <- which.min(BICscores_baseline)
     bestk_cor_baseline <- which.min(minrowcor_baseline)
     SHD_stats <- get_shd_ordered(
@@ -605,11 +615,12 @@ get_all_shd_ordered <- function(
   num_sim
 ){
   #' 
-  thrs <- seq(0, 0.5,length.out = 10)
+  #' 
+  setwd(paste0("output/",simID))
+  thrs <- seq(0, 0.8,length.out = 20)
   allShdS <- vector(mode = "list", length = length(thrs))
   bstar_adj <- 1*(abs(estimands$b) > 0)
   for(sim in 1:num_sim){
-    setwd(paste0("output/",simID))
     allshd <- readRDS(paste0(simID, "--", sim, '/SHDstats.rds'))
     BICscores_baseline <- readRDS(paste0(simID, "--", sim, "/BICscores_baseline.rds"))
     minrowcor_baseline <- readRDS(paste0(simID, "--", sim, "/minrowcor_baseline.rds"))
@@ -644,6 +655,7 @@ get_all_shd_ordered <- function(
         thresh = thrs[j]
       )
     }
+    saveRDS(allShdS, file = paste0(simID, '--', sim, "/allShdS.rds"))
     bestbenchBIC <- which.min(sapply(
       allShdS, 
       function(x) abs(x$shdXbaseline['pnum'] - allshd$shdXmain['pnum'])
@@ -656,8 +668,8 @@ get_all_shd_ordered <- function(
     allshd$shdXbaselineCor <- allShdS[[bestbenchCor]]$shdXbaselineCor
     saveRDS(allshd, paste0(simID, "--", sim, "/SHDclose.rds"))
     cat("[INFO] Sim", sim, "is done. \n")
-    setwd("~/Documents/research/dag_network")
   }
+  setwd("~/Documents/research/dag_network")
 }
 
 # get_all_shd_unordered <- function(
@@ -1173,4 +1185,127 @@ get_mle_gespc <- function(X, dag_adj){
     Bmle = bhat,
     omgmlesq = omg_new_sq
   ))
+}
+
+
+get_roc_data_ordered <- function(simID, thrlb=0, thrub=0.8, thrlen=20){
+  #' generate ROC curves
+  #' 
+  setwd(paste0('output/', simID))
+  args <- readRDS('args.rds')
+  estimands <- readRDS('estimands.rds')
+  num_sim <- args$num_sim
+  bstar_adj <- 1*(abs(estimands$b) > 0)
+  
+  threshes <- seq(thrlb, thrub, length.out = thrlen)
+  allShdS <- vector(mode = "list", length = length(threshes))
+  
+  for(sim in 1:args$num_sim){
+    cat("[INFO]: Processing sim ", sim, "\n")
+    BICscores_main <- readRDS(paste0(simID, '--', sim, '/BICscores_main.rds'))  
+    minrowcor_main <- readRDS(paste0(simID, '--', sim, '/minrowcor_main.rds'))
+    BICscores_main1iter <- readRDS(paste0(simID, '--', sim, '/BICscores_1iter_main.rds'))
+    minrowcor_main1iter <- readRDS(paste0(simID, '--', sim, '/minrowcor_1iter_main.rds'))
+    BICscores_baseline <- readRDS(paste0(simID, '--', sim, '/BICscores_baseline.rds')) 
+    minrowcor_baseline <- readRDS(paste0(simID, '--', sim, '/minrowcor_baseline.rds'))
+    
+    bestk_bic_main <- which.min(BICscores_main)
+    bestk_cor_main <- which.min(minrowcor_main)
+    bestk_bic_1iter <- which.min(BICscores_main1iter)
+    bestk_cor_1iter <- which.min(minrowcor_main1iter)
+    bestk_bic_baseline <- which.min(BICscores_baseline)
+    bestk_cor_baseline <- which.min(minrowcor_baseline)
+    
+    for(j in 1:length(threshes)){
+      allShdS[[j]] <- get_shd_ordered(
+        kmainbic = bestk_bic_main, 
+        kmaincor = bestk_cor_main, 
+        kbenchbic = bestk_bic_baseline, 
+        kbenchcor = bestk_cor_baseline,
+        k1iterbic = bestk_bic_1iter,
+        k1itercor = bestk_cor_1iter,
+        sim = sim,
+        simID = simID,
+        bstar_adj = bstar_adj, 
+        s0 = estimands$s0, 
+        theta0 = estimands$theta,
+        b0 = estimands$b,
+        thresh = threshes[j]
+      )
+    }  
+    saveRDS(allShdS, file = paste0(simID, '--', sim, "/allShdS.rds"))
+  }
+  setwd("~/Documents/research/dag_network")
+}
+
+
+
+get_roc_plots <- function(simID, ymin=50, xmax=101, thrLen=20){
+  #' generate ROC plot for BCD and baseline
+  setwd(paste0("output/",simID))
+  args <- readRDS('args.rds')
+  estimands <- readRDS('estimands.rds')
+  rocmain <- rocbench <- array(data = 0, dim = c(2, thrLen))
+  
+  for(sim in 1:args$num_sim){
+    allShdS <- readRDS(paste0(simID, '--', sim, '/allShdS.rds'))  
+    rocmain__ <- sapply(allShdS, function(x) c(FP =(x$shdXmain['pnum'] - x$shdXmain['TP']),
+                                               TP = x$shdXmain['TP'] ))
+    rocbench__ <- sapply(allShdS, function(x) c(FP =(x$shdXbaseline['pnum'] - x$shdXbaseline['TP']),
+                                                TP = x$shdXbaseline['TP']))
+    rocmain <- rocmain + rocmain__
+    rocbench <- rocbench + rocbench__
+  }
+  rocmain <- rocmain / thrLen
+  rocbench <- rocbench / thrLen
+  
+
+  # ymax <- 120
+  # xmax <- min(estimands$s0,max(rocmain[1,]))
+  xmin <- 0
+  ymax <- min(estimands$s0, max(rocmain[2,]))
+  # ymax = 83
+  
+  setEPS()
+  postscript(paste0(args$setting, ".eps"))
+  mar.default <- c(4,4,2,2)
+  par(mar = mar.default + c(1, 1, 0, 0)) 
+  plot(t(rocmain),
+       xlim=c(xmin,xmax),
+       ylim = c(ymin, ymax),
+       type = "l",
+       lty = 4,
+       lwd = 4,
+       col="red",
+       # xlab = "False Positive",
+       xlab = "",
+       # ylab= "True Positive",
+       ylab = "",
+       xaxt = "n",
+       yaxt = "n",
+       # cex.axis = 2,
+       # cex.lab = 3
+       )
+  points(t(rocbench),
+         col = "blue",
+         lty = 5,
+         lwd = 4,
+         type="l")
+  axis(
+    side = 1, 
+    at = seq(xmin, xmax, length.out = 5),
+    labels = round(seq(xmin, xmax, length.out = 5),1),
+    cex.axis = 2.3)
+  axis(
+    side = 2,
+    at = seq(ymin, ymax,length.out = 5), 
+    labels = round(seq(ymin, ymax,length.out = 5),1),
+    cex.axis = 2.3)
+  legend("bottomright", legend = c("BCD", "Baseline"),
+         col = c("red", "blue"), lty = c(4,5), lwd = c(4,4),
+         cex = 2)
+  # legend("bottomright", legend = c("BCD"),
+  #        col = c("red"), lty = c(4))
+  dev.off()
+  setwd("~/Documents/research/dag_network")
 }

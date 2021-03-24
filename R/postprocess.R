@@ -87,44 +87,12 @@ for(i in 1:10){
 setwd(paste0("~/Dropbox/research/code/", args$setting))
 p <- estimands$realp
 n <- args$n
-rocmain <- sapply(allShdS, function(x) c(FP =(x$shdXmain['pnum'] - x$shdXmain['TP']),
-                                         TP = x$shdXmain['TP'] ))
-rocbench <- sapply(allShdS, function(x) c(FP =(x$shdXbench['pnum'] - x$shdXbench['TP']),
-                                          TP = x$shdXbench['TP']))
-xmax <- max(rocmain[1,])*7/8
-ymax <- max(rocmain[2,])
 
-setEPS()
-postscript(paste0(args$setting, ".eps"))
-mar.default <- c(4,4,2,2)
-par(mar = mar.default + c(1, 1, 0, 0)) 
-plot(t(rocmain),
-     xlim=c(0,xmax),
-     ylim = c(50, ymax),
-     type = "l",
-     lty = 4,
-     lwd = 4,
-     col="red",
-     xlab = "False Positive",
-     ylab= "True Positive",
-     xaxt = "n",
-     yaxt = "n",
-     cex.axis = 2,
-     cex.lab = 2)
-points(t(rocbench),
-       col = "blue",
-       lty = 5,
-       lwd = 4,
-       type="l")
-axis(side = 1, at = seq(0, xmax, length.out = 5),
-     labels = round(seq(0, xmax, length.out = 5),1),
-     cex.axis = 1.5)
-axis(side = 2, at = seq(50, ymax,length.out = 5), 
-     labels = seq(50, ymax,length.out = 5), cex.axis = 1.5)
-legend("bottomright", legend = c("BCD", "bench"),
-       col = c("red", "blue"), lty = c(4,5), lwd = c(4,4),
-       cex = 2)
-# legend("bottomright", legend = c("BCD"),
-#        col = c("red"), lty = c(4))
-dev.off()
+
+
+
+
+get_roc_plots('121001')
+
+
 

@@ -323,7 +323,8 @@ gen.theta <- function(struct = 'exp.decay',
              indices <- as.matrix(expand.grid(1:block_size, 1:block_size))
              blocks[[i]] <- diag(block_size)
              for(j in 1:nrow(indices)) blocks[[i]][indices[j,1], indices[j,2]] <- 0.7^(abs(diff(indices[j,]))/5)
-             sig <- cov2cor(solve(blocks[[i]]))
+             # sig <- cov2cor(solve(blocks[[i]]))
+             sig <- solve(blocks[[i]])
              blocks[[i]] <- round(solve(sig),5)
              if(!is.positive.definite(blocks[[i]])) stop("Theta is not positive definite !!!")
              zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
@@ -347,7 +348,8 @@ gen.theta <- function(struct = 'exp.decay',
                cat(paste0("The ", i, "th block is not invertible! Adding 1. \n"))
                blocks[[i]] <- blocks[[i]] + 1*diag(dim(blocks[[i]])[1])
              }
-             sig <- cov2cor(solve(blocks[[i]]))
+             # sig <- cov2cor(solve(blocks[[i]]))
+             sig <- solve(blocks[[i]])
              blocks[[i]] <- round(solve(sig),5)
              if(!is.positive.definite(as.matrix(blocks[[i]]))) stop("Theta is not positive definite !!!")
              zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
@@ -365,7 +367,8 @@ gen.theta <- function(struct = 'exp.decay',
                block_size = n - (num_blocks-1)*block_size
              blocks[[i]] <- matrix(1,block_size, block_size)
              diag(blocks[[i]])[2:block_size] <- sample(3:10, size = 1)
-             sig <- cov2cor(blocks[[i]])
+             # sig <- cov2cor(blocks[[i]])
+             sig <- blocks[[i]]
              blocks[[i]] <- round(solve(sig),5)
              
              if(!is.positive.definite(blocks[[i]])) stop("Theta is not positive definite !!!")
@@ -401,7 +404,8 @@ gen.theta <- function(struct = 'exp.decay',
                block_size = n - (num_blocks-1)*block_size
              blocks[[i]] <- genPositiveDefMat(covMethod = "eigen", dim = block_size)$Sigma
              # blocks[[i]][abs(blocks[[i]]) < 0.1] <- 0
-             sig <- cov2cor(blocks[[i]])
+             # sig <- cov2cor(blocks[[i]])
+             sig <- blocks[[i]]
              blocks[[i]] <- round(solve(sig),5)
              blocks[[i]][abs(blocks[[i]]) < 0.1] <- 0
              if(!is.positive.definite(blocks[[i]]))
@@ -421,7 +425,8 @@ gen.theta <- function(struct = 'exp.decay',
                block_size = n - (num_blocks-1)*block_size
              A <- matrix(runif(block_size^2)*2-1, ncol=block_size) 
              blocks[[i]] <- t(A) %*% A
-             sig <- cov2cor(blocks[[i]])
+             # sig <- cov2cor(blocks[[i]])
+             sig <- blocks[[i]]
              blocks[[i]] <- round(solve(sig),5)
              blocks[[i]][abs(blocks[[i]]) < 0.1] <- 0
              if(!is.positive.definite(blocks[[i]]))

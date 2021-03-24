@@ -31,6 +31,11 @@ process_output_ordered(simID = simID, estimands = estimands, thr = 0.1)
 get_all_shd_ordered(simID = simID, estimands, args$num_sim)
 get_average_shd_ordered(simID = simID, nsim = as.numeric(args$num_sim))
 
+simID = '121005'
+# get_roc_data_ordered(simID = simID)
+get_roc_plots(simID = simID, ymin = 20, xmax = 150)
+
+
 # unordered 
 setwd("~/Documents/research/dag_network")
 simID <- args$setting
@@ -38,38 +43,6 @@ sim_newalgo_unordered(args, estimands, start_sim=1, end_sim=args$num_sim, lamLen
 process_output_unordered(simID = simID, thr = 0.1, nsim = args$num_sim)
 get_average_shd_unordered(simID = simID, nsim = as.numeric(args$num_sim))
 
-
-
-# 
-# sum(sapply(block_idx, length) <= 2)
-# 
-# block_idx2 = vector(mode = 'list')
-# 
-# i = 1
-# zeropos_list <- matrix(0, dimnames = list(NULL, c('row', 'col')), ncol = 2)
-# newblock = c()
-# for(j in 1:k){
-#   if(length(block_idx[[j]]) > 2){
-#     block_idx2[[i]] = block_idx[[j]]
-#     i <- i + 1
-#   }else{
-#     newblock <- c(newblock, block_idx[[j]])
-#     zeropos_list <- rbind(zeropos_list, )
-#   }
-# }
-
-
-# test_mat <- matrix(1:16, 4, 4)
-# dimnames(test_mat) <- list(1:4, 1:4)
-networkDAG_sol_path(
-  X = res$subsetXp,
-  # X = Xp,
-  block_size=20, 
-  zeropos_list = NULL,
-  block_idx = res$block_idx,
-  lambda_len = 10,
-  maxIter = 100
-)
 
 
 # 
