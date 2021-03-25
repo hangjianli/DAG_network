@@ -1330,9 +1330,9 @@ get_shd_ji_diff <- function(simIDarr){
       shdgesdiff[as.integer(i+skip)] <- allshd$shd_ges['myshd'] - allshd$shd_ges_decor['myshd']
       shdpcdiff[as.integer(i+skip)] <- allshd$shd_pc['myshd'] - allshd$shd_pc_decor['myshd']
       shdsbdiff[as.integer(i+skip)] <- allshd$shd_sbn['myshd'] - allshd$shd_sbn_decor['myshd']
-      JIgesdiff[as.integer(i+skip)] <- allshd$shd_ges['JI'] - allshd$shd_ges_decor['JI']
-      JIpcdiff[as.integer(i+skip)] <- allshd$shd_pc['JI'] - allshd$shd_pc_decor['JI']
-      JIsbdiff[as.integer(i+skip)] <- allshd$shd_sbn['JI'] - allshd$shd_sbn_decor['JI']
+      JIgesdiff[as.integer(i+skip)] <- allshd$shd_ges_decor['JI'] - allshd$shd_ges['JI']
+      JIpcdiff[as.integer(i+skip)] <- allshd$shd_pc_decor['JI'] - allshd$shd_pc['JI']
+      JIsbdiff[as.integer(i+skip)] <- allshd$shd_sbn_decor['JI'] - allshd$shd_sbn['JI']
     }
     setwd("~/Documents/research/dag_network")
     skip <- skip + simLen
@@ -1351,12 +1351,17 @@ get_shd_ji_diff <- function(simIDarr){
 
 plot_boxplot_shd <- function(shd_data, nsim=10, nmethod=3){
   setwd('~/Documents/research/dag_network/output/')
-  thetas = c("Equal corr", "Toeplitz", "Star", "Exp Decay", "AR")
-  mydataSHD <- data.frame(
+  thetas = c("Equalcorr", "Toeplitz", "Star", "ExpDecay", "AR")
+  mydata <- data.frame(
     shddiff = c(
       shd_data$shdgesdiff, 
       shd_data$shdpcdiff,
       shd_data$shdsbdiff
+    ),
+    jadiff = c(
+      shd_data$JIgesdiff,
+      shd_data$JIpcdiff,
+      shd_data$JIsbdiff
     ),
     id = rep(
       rep(
@@ -1368,19 +1373,48 @@ plot_boxplot_shd <- function(shd_data, nsim=10, nmethod=3){
   )
   
   for(theta in thetas){
-    plot_shd_util(df = subset(mydataSHD, (id == theta) & (shddiff < 1000)), theta_type = theta)
+    plot_shd_util(df = subset(mydata, (id == theta) & (shddiff < 1000)), theta_type = theta)
+    plot_ja_util(df = subset(mydata, (id == theta) & (shddiff < 1000)), theta_type = theta)
   }
   setwd("~/Documents/research/dag_network")
 }
 
 plot_shd_util <- function(df, theta_type="Equal corr"){
   setEPS()
-  postscript(paste0(theta_type, ".eps"))
+  postscript(paste0(theta_type, "-shd.eps"))
   par(mar = c(2,2,2,2))
   plt <- ggplot(df, aes(x = label, y = shddiff)) + 
     geom_boxplot(aes(fill = method), width=.3) + 
     xlab("Sample size (n, p)") + 
     ylab("Decrease in SHD") + 
+    # facet_grid(.~label) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 1.5) + 
+    theme(
+      strip.text.x = element_text(size = 18),
+      panel.background = element_blank(),
+      panel.grid.minor = element_blank(),
+      # panel.border = element_rect(color = "black", fill = NA),
+      axis.line = element_line(colour = "black"),
+      axis.title=element_text(size=25,face="bold"),
+      axis.text = element_text(size=25),
+      legend.text=element_text(size=20),
+      # axis.text.x=element_blank(),
+      legend.title = element_text(size = 20),
+      strip.background = element_rect(color = "black", fill = "white")
+    ) + 
+    scale_x_discrete(labels=c("n<p" = "(100, 200)", "n>p" = "(300, 100)"))
+  print(plt)
+  dev.off()
+}
+
+plot_ja_util <- function(df, theta_type="Equal corr"){
+  setEPS()
+  postscript(paste0(theta_type, "-ja.eps"))
+  par(mar = c(2,2,2,2))
+  plt <- ggplot(df, aes(x = label, y = jadiff)) + 
+    geom_boxplot(aes(fill = method), width=.3) + 
+    xlab("Sample size (n, p)") + 
+    ylab("Increase in Jaccard index") + 
     # facet_grid(.~label) +
     geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 1.5) + 
     theme(
