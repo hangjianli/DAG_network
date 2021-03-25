@@ -39,10 +39,22 @@ get_roc_plots(simID = simID, ymin = 20, xmax = 150)
 # unordered 
 setwd("~/Documents/research/dag_network")
 simID <- args$setting
-sim_newalgo_unordered(args, estimands, start_sim=1, end_sim=args$num_sim, lamLen=10, lambda1_max_div = 100)
+sim_newalgo_unordered(args, estimands, start_sim=4, end_sim=args$num_sim, lamLen=10, lambda1_max_div = 100)
 process_output_unordered(simID = simID, thr = 0.1, nsim = args$num_sim)
 get_average_shd_unordered(simID = simID, nsim = as.numeric(args$num_sim))
 
+
+simIDarr = c(
+  '00011','00022', '00033', '00055', '00044',
+  '321001', '321002', '321003', '321004', '321005'
+)
+
+shd_data <- get_shd_ji_diff(simIDarr)
+plot_boxplot_shd(shd_data = shd_data)
+
+
+# library(xtable)
+# xtable(shd_average, digits = c(0,0,0))
 
 
 # 

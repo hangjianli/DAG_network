@@ -1309,3 +1309,94 @@ get_roc_plots <- function(simID, ymin=50, xmax=101, thrLen=20){
   dev.off()
   setwd("~/Documents/research/dag_network")
 }
+
+
+get_shd_ji_diff <- function(simIDarr){
+  setwd("~/Documents/research/dag_network")
+  num_sims = length(simIDarr)
+  shdgesdiff <- shdpcdiff <- shdsbdiff <- rep(0,num_sims * 10)
+  JIgesdiff <- JIpcdiff <- JIsbdiff <- rep(0,num_sims * 10)
+  
+  skip = 0
+  for(id in simIDarr){
+    # 5 + 5
+    cat('[INFO]: processing sim', id, '\n')
+    setwd(paste0("output/",id))
+    args <- readRDS('args.rds')
+    simLen = as.numeric(args$num_sim)
+    for (i in 1:simLen){
+      # 10
+      allshd <- readRDS(paste0(id, '--', i, '/SHDstats.rds'))  
+      shdgesdiff[as.integer(i+skip)] <- allshd$shd_ges['myshd'] - allshd$shd_ges_decor['myshd']
+      shdpcdiff[as.integer(i+skip)] <- allshd$shd_pc['myshd'] - allshd$shd_pc_decor['myshd']
+      shdsbdiff[as.integer(i+skip)] <- allshd$shd_sbn['myshd'] - allshd$shd_sbn_decor['myshd']
+      JIgesdiff[as.integer(i+skip)] <- allshd$shd_ges['JI'] - allshd$shd_ges_decor['JI']
+      JIpcdiff[as.integer(i+skip)] <- allshd$shd_pc['JI'] - allshd$shd_pc_decor['JI']
+      JIsbdiff[as.integer(i+skip)] <- allshd$shd_sbn['JI'] - allshd$shd_sbn_decor['JI']
+    }
+    setwd("~/Documents/research/dag_network")
+    skip <- skip + simLen
+  }
+  
+  return(list(
+    shdgesdiff = shdgesdiff,
+    shdpcdiff = shdpcdiff,
+    shdsbdiff = shdsbdiff,
+    JIgesdiff = JIgesdiff,
+    JIpcdiff = JIpcdiff,
+    JIsbdiff = JIsbdiff
+  ))
+}
+
+
+plot_boxplot_shd <- function(shd_data, nsim=10, nmethod=3){
+  setwd('~/Documents/research/dag_network/output/')
+  thetas = c("Equal corr", "Toeplitz", "Star", "Exp Decay", "AR")
+  mydataSHD <- data.frame(
+    shddiff = c(
+      shd_data$shdgesdiff, 
+      shd_data$shdpcdiff,
+      shd_data$shdsbdiff
+    ),
+    id = rep(
+      rep(
+        rep(thetas, each=nsim), # 5 settings
+        2), # (n < p) and (n ? p)
+      nmethod), # 3 methods
+    label = rep(rep(c("n<p", "n>p"), each = 50),nmethod),
+    method = rep(c("GES", "PC", "SBN"), each = 2 * 5 * nsim)
+  )
+  
+  for(theta in thetas){
+    plot_shd_util(df = subset(mydataSHD, (id == theta) & (shddiff < 1000)), theta_type = theta)
+  }
+  setwd("~/Documents/research/dag_network")
+}
+
+plot_shd_util <- function(df, theta_type="Equal corr"){
+  setEPS()
+  postscript(paste0(theta_type, ".eps"))
+  par(mar = c(2,2,2,2))
+  plt <- ggplot(df, aes(x = label, y = shddiff)) + 
+    geom_boxplot(aes(fill = method), width=.3) + 
+    xlab("Sample size (n, p)") + 
+    ylab("Decrease in SHD") + 
+    # facet_grid(.~label) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 1.5) + 
+    theme(
+      strip.text.x = element_text(size = 18),
+      panel.background = element_blank(),
+      panel.grid.minor = element_blank(),
+      # panel.border = element_rect(color = "black", fill = NA),
+      axis.line = element_line(colour = "black"),
+      axis.title=element_text(size=25,face="bold"),
+      axis.text = element_text(size=25),
+      legend.text=element_text(size=20),
+      # axis.text.x=element_blank(),
+      legend.title = element_text(size = 20),
+      strip.background = element_rect(color = "black", fill = "white")
+    ) + 
+    scale_x_discrete(labels=c("n<p" = "(100, 200)", "n>p" = "(300, 100)"))
+  print(plt)
+  dev.off()
+}
