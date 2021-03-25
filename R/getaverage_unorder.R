@@ -48,51 +48,28 @@ saveRDS(thetaRE_average, file = paste0("../", setting,"/thetaRETotal.rds"))
 
 
 # shdmain <- shdges <-  shdpc <- shdgesL <- shdpcL <- rep(0, 30)
-shdgesdiff <- shdpcdiff <- shdsbdiff <- rep(0,4*10)
-JIgesdiff <- JIpcdiff <- JIsbdiff <- rep(0,4*10)
-  
-# shddiff <- rep(0,10)
-# shdgesdiff <- shdgesdiff[1:40]
-# shdpcdiff <- shdpcdiff[1:40]
-  
-args <- readRDS("~/Dropbox/research/code/072630/args.rds")
-setting <- as.character(args$setting)
-# settting <- "4305"
-nsim <- 10
-a <- 30
-for (i in 1:nsim){
-  #compute relative error
-  # Bre <- readRDS(paste0("~/Dropbox/research/code/",setting, "--", i, "/Bre.rds"))
-  # Bre_average <- Bre_average + unlist(Bre)
-  # Thetare <- readRDS(paste0("~/Dropbox/research/code/",setting, "--", i, "/thetaRE.rds"))
-  # thetaRE_average <- thetaRE_average + unlist(Thetare)
-  allshd <- readRDS(paste0("~/Dropbox/research/code/", setting, "--", i, "/allshd.rds"))  
-  # allshd <- as.data.frame(allshd)
-  # shdmain[as.integer(i+a)] <- allshd$shdXmain[7]
-  # shdges[as.integer(i+a)] <- allshd$shdGES[7]
-  # shdpc[as.integer(i+a)] <- allshd$shdPC[7]
-  # shdpcL[as.integer(i+a)] <- allshd$shdL_pc[7]
-  # shdgesL[as.integer(i+a)] <- allshd$shdXLBIC[7]
-  # print(c(allshd$shdGES[7], allshd$shdXLBIC[7]))
-  shdgesdiff[as.integer(i+a)] <- allshd$shdGES[7] - allshd$shdXLBIC[7]
-  shdpcdiff[as.integer(i+a)] <- allshd$shdPC[7] - allshd$shdL_pc[7]
-  shdsbdiff[as.integer(i+a)] <- allshd$shdSB[7] - allshd$shdSBL[7]
-  
-  JIgesdiff[as.integer(i+a)] <- allshd$shdXLBIC[5] - allshd$shdGES[5]
-  JIpcdiff[as.integer(i+a)] <- allshd$shdL_pc[5] - allshd$shdPC[5]
-  JIsbdiff[as.integer(i+a)] <- allshd$shdSBL[5] - allshd$shdSB[5]
-  
-  
-  # shddiff[as.integer(i+a)] <- allshd$shdGES[6] - allshd$shdXLBIC[6]
-  
-  # GESL <- readRDS(paste0("~/Dropbox/research/code/", setting, "--", i, "/shdXLBIC.rds"))
-  # PCL <- readRDS(paste0("~/Dropbox/research/code/", setting, "--", i, "/shdL_pc.rds"))
-  # allshd$GESL <- unlist(GESL)
-  # allshd$PCL <- PCL
-  # shdXflipbic <- readRDS(paste0("~/OneDrive/Documents/research/code/11072--", i, "/shdXX_flip_bic.rds"))
-  # allshd$shdXflipbic <- unlist(shdXflipbic)
-  # theta_re[i] <- readRDS(paste0("~/Dropbox/research/code/",setting, "--", i, "/thetaRE.rds"))
-}
+shdgesdiff <- shdpcdiff <- shdsbdiff <- rep(0,5*10)
+JIgesdiff <- JIpcdiff <- JIsbdiff <- rep(0,5*10)
+
+
+
+# 
+# mydataSHD <- data.frame(
+#   shddiff = c(res$shdgesdiff, res$shdpcdiff, res$shdsbdiff),
+#   id = rep(
+#     rep(
+#       rep(
+#         c("Equal corr", "Toeplitz", "Star", "Exp Decay", "AR"), 
+#         each=10), # 5 settings
+#       2), # (n < p) and (n ? p)
+#     3), # 3 methods
+#   label = rep(rep(c("n<p", "n>p"), each = 50),3),
+#   method = rep(c("GES", "PC", "SBN"), each = 100)
+# )
+
+
+
+
 # boxplot(shddiff)
 # mydata <- data.frame(shd = c(shdmain, shdges, shdgesL, shdpc, shdpcL),
 #                      id = rep(rep(c("andes", "hailfinder", "barley"), each=args$num_sim), 5),
@@ -102,25 +79,16 @@ for (i in 1:nsim){
 #                              id = rep(rep(c("arth150", "magic-irri", "ecoli70"), each=args$num_sim), 2),
 #                              label = rep(c("facebook", "celegans_n306"), each= 30))
 
-mydata <- data.frame(shddiff = c(shdgesdiff, shdpcdiff, shdsbdiff),
-                     id = rep(rep(rep(c("arth150", "ecoli70"), each=args$num_sim), 2),3),
-                     label = rep(c("GES", "PC", "SPB"), each = 40),
-                     net = rep(rep(c("facebook", "celegans_n306"), each = 20),3))
+# mydata <- data.frame(shddiff = c(shdgesdiff, shdpcdiff, shdsbdiff),
+#                      id = rep(rep(rep(c("arth150", "ecoli70"), each=args$num_sim), 2),3),
+#                      label = rep(c("GES", "PC", "SPB"), each = 40),
+#                      net = rep(rep(c("facebook", "celegans_n306"), each = 20),3))
 
 
-mydataSHD <- data.frame(shddiff = c(shdgesdiff, shdpcdiff),
-                     id = rep(rep(rep(c("Toeplitz", "equi.cor", "AR", "star"), each=args$num_sim), 2), 2),
-                     label = rep(rep(c("n<p", "n>p"), each = 40),2),
-                     method = rep(c("GES", "PC"), each = 80))
+
 
 
 # saveRDS(mydata, "unordered_sim_SHD_JI.rds")
-
-dataToep <- subset(mydataSHD, id == "Toeplitz")
-dataEqui <- subset(mydataSHD, id == "equi.cor")
-dataAR <- subset(mydataSHD, id == "AR")
-datastar <- subset(mydataSHD, id == "star")
-
 
 
 # png(paste0("AR", ".png"), width = 500, height = 460)
@@ -150,7 +118,10 @@ ggplot(dataToep, aes(x = label, y = shddiff)) +
 dev.off()
 
 
-
+ggplot(dataToep, aes(y = shddiff)) + 
+  geom_boxplot(aes(fill = method), width=.3) + 
+  xlab("Sample size (n, p)") + 
+  ylab("Decrease in SHD")
 
 
 
