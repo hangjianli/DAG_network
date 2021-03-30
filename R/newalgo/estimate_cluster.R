@@ -17,7 +17,8 @@ goodgene_exclude_target <- goodgene[!(rownames(goodgene) %in% colnames(targetgen
 goodgene_exclude_target %>% dim()
 # setdiff(colnames(targetgene), rownames(goodgene)) # this should be empty
 sc_idx_full <- readRDS("~/Documents/research/dag_network/data/single_cell_data/single_cell_block_idx_full.rds")
-
+# sc_idx_full is a list of cell indexes. It has 7 components corresponding to each cell type. 
+# c('H1', 'H9', 'DEC'. 'EC', 'HFF', 'NPC', 'TB')
 # two-step clustering -----------------------------------------------------
 # sim_data <- two_step_cluster(
 #   othergenes = othergenes,
@@ -31,7 +32,7 @@ corr_thr = 1 - c(0.18, 0.16, 0.23, 0.2, 0.17, 0.185, 0.21)
 
 
 # compute pairwise distance based on correlation --------------------------
-# cell.cor <- othergenes %>% cor(use="pairwise.complete.obs")
+cell.cor <- othergenes %>% cor(use="pairwise.complete.obs")
 # saveRDS(cell.cor, 'data/single_cell_data/cell_cor.rds')
 # cell.cor <- readRDS('data/single_cell_data/cell_cor.rds')
 cell.cor %>% str()
@@ -70,12 +71,12 @@ sim_data <- list(
 )
 
 # main ---------------------------------------------------------------------
-sim_name = 49
+sim_name = 54
 dir.create(path = paste0("~/Documents/research/dag_network/output/single_cell",sim_name))
 setwd(dir = paste0("~/Documents/research/dag_network/output/single_cell", sim_name))
 
 # saveRDS(clusters, 'clusters.rds')
-set.seed(2)
+set.seed(12)
 othergenes <- sample_n(as.data.frame(goodgene_exclude_target), 8000) %>% 
   as.matrix() #  2000 x 1018
 othergenes %>% dim()
@@ -83,12 +84,11 @@ sim_data <- two_step_cluster(
   othergenes = othergenes,
   targetgene = targetgene,
   sc_idx_full = sc_idx_full,
-  method = 'single',
-  corr_thr = c(0.840, 0.850, 0.80, 0.810, 0.840, 0.82, 0.820)
+  method = 'complete',
+  corr_thr = c(0.835, 0.85, 0.78, 0.82, 0.845, 0.82, 0.81)
   # corr_thr = rep(0.86, 7)
 )
 sim_data$block_idx %>% length()
-getwd()
 # sim_data <- readRDS('sim_data.rds')
 saveRDS(sim_data, 'sim_data.rds')
 
@@ -190,29 +190,35 @@ plot_cpdag(sbndag,rescale = T)
 
 
 # chi-square test --------------------------------------------------------------------
-
 lambda <- -(all_bic['negloglikelihood','bic_ges_decor'] - all_bic['negloglikelihood','bic_ges'])
+lambda
 k = all_bic['penalty', 'bic_ges_decor'] - all_bic['penalty', 'bic_ges']
+k
 p = 1 - pchisq(lambda, k)
 p
 options(scipen = 10)
 
 
 lambda <- -(all_bic['negloglikelihood','bic_pc_decor'] - all_bic['negloglikelihood','bic_pc'])
+lambda
 k = all_bic['penalty', 'bic_pc_decor'] - all_bic['penalty', 'bic_pc']
+k
 p = 1 - pchisq(lambda, k)
 p
 options(scipen = 10)
 
 
 lambda <- -(all_bic['negloglikelihood','bic_sbn_decor'] - all_bic['negloglikelihood','bic_sbn'])
+lambda
 k = all_bic['penalty', 'bic_sbn_decor'] - all_bic['penalty', 'bic_sbn']
+k
 p = 1 - pchisq(lambda, k)
 p
 options(scipen = 10)
 
 lambda <- -(all_bic['negloglikelihood','bic_main'] - all_bic['negloglikelihood','bic_baseline'])
 k = all_bic['penalty', 'bic_main'] - all_bic['penalty', 'bic_baseline']
+lambda
 p = 1 - pchisq(lambda, k)
 p
 options(scipen = 10)

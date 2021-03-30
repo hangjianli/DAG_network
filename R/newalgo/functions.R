@@ -182,7 +182,7 @@ estimate_theta <- function(
       }
       # cat('[INFO]  Processing block: ', i, '\n')
       if(length(block_idx[[i]]) < p){
-        lam2 = lambda2
+        lam2 = 1
         # cat('[INFO]  n < p. No penalty needed.\n')
       }else{
         lam2 = lambda2
