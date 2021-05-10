@@ -1,3 +1,22 @@
+
+# 
+# X: num cells x num genes
+# X = [X1, X2]
+# 
+# X2 -> theta_hat
+# X1 -> cross validation 
+# 
+# likelihood1: CV(X1) without decor using PC, GES, ... theta_hat
+# likelihood2: CV(X1) with decor using PC, GES, ... theta_hat
+# 
+# in first case:
+#   X1 = X11 -> B_hat1,  X12 + B_hat1 + theta_hat -> likelihood1
+# 
+# in second case:
+#   X1 = decor(X11) -> B_hat2,  X12 + B_hat2 + theta_hat -> likelihood2
+# 
+# 
+
 setwd("~/Documents/research/dag_network/")
 library(dplyr)
 targetgene <- readRDS("data/single_cell_data/sig_genes_log_val.rds")

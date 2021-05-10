@@ -5,6 +5,7 @@ source("R/loadpackages.R")
 source("R/helper_funcs.R")
 source("R/gen_params_funcs.R")
 source("R/newalgo/functions.R")
+source("R/newalgo/flipflop.R")
 
 
 # generate specs ----------------------------------------------------------
@@ -32,7 +33,18 @@ get_all_shd_ordered(simID = simID, estimands, args$num_sim)
 get_average_shd_ordered(simID = simID, nsim = as.numeric(args$num_sim))
 
 simID = '121005'
+
+
+shd_average <- readRDS("~/Documents/research/dag_network/output/121006/shd_average.rds")
+shd_average$shdXbaseline
+shd_average$shdXff
+
+
+args <- readRDS(paste0("~/Documents/research/dag_network/output/", simID,"/args.rds"))
+estimands <- readRDS(paste0("~/Documents/research/dag_network/output/", simID, "/estimands.rds"))
 # get_roc_data_ordered(simID = simID)
+get_all_shd_ordered(simID = simID, estimands, args$num_sim)
+get_average_shd_ordered(simID = simID, nsim = as.numeric(args$num_sim))
 get_roc_plots(simID = simID, ymin = 20, xmax = 150)
 
 
@@ -50,27 +62,10 @@ simIDarr = c(
 )
 
 shd_data <- get_shd_ji_diff(simIDarr)
-plot_boxplot_shd(shd_data = shd_data)
+plot_boxplot_shd_ja(shd_data = shd_data)
 
 
 # library(xtable)
 # xtable(shd_average, digits = c(0,0,0))
 
 
-# 
-# X: num cells x num genes
-# X = [X1, X2]
-# 
-# X2 -> theta_hat
-# X1 -> cross validation 
-# 
-# likelihood1: CV(X1) without decor using PC, GES, ... theta_hat
-# likelihood2: CV(X1) with decor using PC, GES, ... theta_hat
-# 
-# in first case:
-#   X1 = X11 -> B_hat1,  X12 + B_hat1 + theta_hat -> likelihood1
-# 
-# in second case:
-#   X1 = decor(X11) -> B_hat2,  X12 + B_hat2 + theta_hat -> likelihood2
-# 
-# 

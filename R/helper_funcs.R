@@ -155,15 +155,19 @@ dag_mle_estimation <- function(Bhat, Lhat, X){
   omg_new_sq[1] <- sum(Xnew[,1]^2)/n
   for(j in 2:p){
     nonzero_id <- which(abs(Bhat[,j]) > 1e-4)
-    if(length(nonzero_id) >= n)
-      stop(paste0("Too many nonzero entries in ", j, "th column"))
-    if(length(nonzero_id) != 0){
-      mj <- lm(Xnew[,j]~Xnew[,nonzero_id]-1)
-      thresh <- thresh + sum(summary(mj)$coefficients[,2])
-      Bnew[nonzero_id,j] <- coef(mj)
-      omg_new_sq[j] <- sum(mj$residuals^2)/n
+    if(length(nonzero_id) >= n){
+      warning(paste0("Too many nonzero entries in ", j, "th column"))
+      omg_new_sq[j] = sum((Xnew[,j] - Xnew%*%Bhat[,j])^2)/n
+      Bnew[,j] = Bhat[,j]
     }else{
-      omg_new_sq[j] <- sum(Xnew[,j]^2)/n
+      if(length(nonzero_id) != 0){
+        mj <- lm(Xnew[,j]~Xnew[,nonzero_id]-1)
+        thresh <- thresh + sum(summary(mj)$coefficients[,2])
+        Bnew[nonzero_id,j] <- coef(mj)
+        omg_new_sq[j] <- sum(mj$residuals^2)/n
+      }else{
+        omg_new_sq[j] <- sum(Xnew[,j]^2)/n
+      }
     }
   }
   if(is.null(dimnames(Bhat))){

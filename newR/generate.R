@@ -541,12 +541,18 @@ genTheta <- function(n,
 
 # Simulate observational data from network DAG ----------------------------
 
+#' sample data from the given network DAG
+#'
+#' @param omg vector. Standard deviation of error
+#' @param sig matrix. row-covariance matrix 
+#' @param b matrix. DAG weights
+#' @param vers 
+#'
+#' @return A list of X and E, both are matrices
+#' @export
+#'
+#' @examples
 sim_X <- function(omg, sig, b, vers=1){
-  #' sample data from the given network DAG
-  #' @param omg vector. Standard deviation of error
-  #' @param sig matrix. row-covariance matrix 
-  #' @param b matrix. DAG weights
-  #'@return A list of X and E, both are matrices
   p = length(omg)
   n = dim(sig)[1]
   set.seed(vers)

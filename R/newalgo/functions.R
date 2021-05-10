@@ -200,7 +200,7 @@ estimate_theta <- function(
   }else{
     for(i in 1:num_blocks){
       zeros = zeropos_list[[i]]
-      if(dim(zeros)[1] == 0)
+      if(length(as.numeric(zeros)) == 0 | is.null(zeros))
         zeros = NULL
       temp_sig <- glasso(s = S[(1+block_size*(i-1)) : min(block_size*i,n), 
                                (1+block_size*(i-1)) : min(block_size*i,n)],
@@ -298,6 +298,7 @@ networkDAG_sol_path <- function(
   lambda_len=10,
   lambda2=100,
   lambda1_max_div = 10,
+  lambda1_max_div2 = 200,
   maxIter=100
 ){
   n <- dim(X)[1]
@@ -307,10 +308,20 @@ networkDAG_sol_path <- function(
   if(lambda_len == 1){
     lambda.path[1] = 0
   }
+  
+  lambdaff.path <- rev(
+    get_lam_path(p, X, rho.est = rep(1,p), lambda_len, div = lambda1_max_div2))
+  if(lambda_len == 1){
+    lambda.path[1] = 0
+  }
+  
+  
   saveRDS(lambda.path, file = "lambda_path.rds")
+  saveRDS(lambdaff.path, file = "lambdaff.path.rds")
   BICscores_main <- minrowcor_main <- rep(0, length(lambda.path))
   BICscores_1iter_main <- minrowcor_1iter_main <- rep(0, length(lambda.path))
   BICscores_baseline <- minrowcor_baseline <- rep(0, length(lambda.path))
+  BICscores_ff <- minrowcor_ff <- rep(0, length(lambda.path))
   for(k in 1:length(lambda.path)){
     set.seed(1)
     cat(paste0("===============================================================","\n"))
@@ -330,13 +341,34 @@ networkDAG_sol_path <- function(
       cat("[INFO] lambda is too small, algorithm stops at k = ", k, "\n")
       break
     }
+    
+    resff <- flipflop(
+      X = X,
+      block_size = block_size,
+      zeropos_list = zeropos_list,
+      block_idx = block_idx,
+      lambda1 = lambda.path[k],
+      lambda2 = lambda2, 
+      maxIter = maxIter
+    )
+    
+    if(any(apply(resff$bhat, 2, function(x) sum(abs(x) > 1e-4)) >= n)){
+      cat("[INFO] lambdaff is too small, algorithm stops at k = ", k, "\n")
+      break
+    }
+    
+    saveRDS((resff), file = paste0("ff_lam_", k, ".rds"))
     saveRDS(res, file = paste0("main_lam_", k, ".rds"))
+    # compute min correlation
     cor_est <- cor(t(chol(res$thetahat)%*%(X - X%*%res$bhat)))
     minrowcor_main[k] <- sum(abs(cor_est[upper.tri(cor_est)]))
     cor_est_1iter <- cor(t(chol(res$thetahat_1iter)%*%(X - X%*%res$bhat_1iter)))
     minrowcor_1iter_main[k] <- sum(abs(cor_est_1iter[upper.tri(cor_est_1iter)]))
     cor_est_baseline <- cor(t(X - X%*%res$bhat_1iter))
     minrowcor_baseline[k] <- sum(abs(cor_est_baseline[upper.tri(cor_est_baseline)]))
+    cor_est_ff <- cor(t(chol(resff$thetahat)%*%(X - X%*%resff$bhat)))
+    minrowcor_ff[k] <- sum(abs(cor_est_ff[upper.tri(cor_est_ff)]))
+    #compute MLE
     mle_result <- dag_mle_estimation(
       X = X, 
       Bhat = res$bhat, 
@@ -352,9 +384,16 @@ networkDAG_sol_path <- function(
       Bhat = res$bhat_1iter,
       Lhat = diag(n)
     )
+    mle_result_ff <- dag_mle_estimation(
+      X = X,
+      Bhat = resff$bhat,
+      Lhat = chol(resff$thetahat)
+    )
     saveRDS(mle_result, file = paste0("mainMLE_lam_", k, ".rds"))
     saveRDS(mle_result_1iter, file = paste0("mainMLE_1iter_lam_", k, ".rds"))
     saveRDS(mle_result_baseline, file = paste0("baselineMLE_lam_", k, ".rds"))
+    saveRDS(mle_result_ff, file = paste0("ffMLE_lam_", k, ".rds"))
+    # compute BIC using MLE estimates
     BIC_result <- BIC_dag(
       X = X,
       block_idx = block_idx,
@@ -379,9 +418,18 @@ networkDAG_sol_path <- function(
       theta = diag(n)
     )
     BICscores_baseline[k] <- BIC_baseline_result$BIC
+    BIC_ff_result <- BIC_dag(
+      X = X,
+      block_idx = block_idx,
+      bmle = mle_result_ff$Bmle,
+      omgmle = mle_result_ff$omgmlesq,
+      theta = resff$thetahat
+    )
+    BICscores_ff[k] <- BIC_ff_result$BIC
     saveRDS(BIC_baseline_result, paste0('BIC_baseline_result_', k, '.rds'))
     saveRDS(BIC_result, paste0('BIC_main_result_', k, '.rds'))
     saveRDS(BIC_1iter_result,  paste0('BIC_1iter_result_', k, '.rds'))
+    saveRDS(BIC_ff_result,  paste0('BIC_ff_result_', k, '.rds'))
   }
   saveRDS(BICscores_main, "BICscores_main.rds")
   saveRDS(minrowcor_main, "minrowcor_main.rds")
@@ -389,59 +437,9 @@ networkDAG_sol_path <- function(
   saveRDS(minrowcor_1iter_main, "minrowcor_1iter_main.rds")
   saveRDS(BICscores_baseline, "BICscores_baseline.rds")
   saveRDS(minrowcor_baseline, "minrowcor_baseline.rds")
+  saveRDS(BICscores_ff, "BICscores_ff.rds")
+  saveRDS(minrowcor_ff, "minrowcor_ff.rds")
 }
-# 
-# bench_sol_path <- function(
-#   X,
-#   block_size,
-#   zeropos_list=zeropos_list,
-#   lambda_len=10,
-#   maxIter=100
-# ){
-#   n <- dim(X)[1]
-#   p <- dim(X)[2]
-#   lambda.path <- rev(get_lam_path(p, X, rho.est = rep(1,p), lambda_len, 100))
-#   saveRDS(lambda.path, file = "lambda_path.rds")
-#   BICscores_bench <- minrowcor_bench <- rep(0, length(lambda.path))
-#   for(k in 1:length(lambda.path)){
-#     set.seed(1)
-#     cat(paste0("=======================================================","\n"))
-#     cat(paste0('[INFO] Lambda k: ', k, "\n"))
-#     res <- run_bcd(
-#       X = X, 
-#       baseline_flag = T,
-#       block_size = block_size,
-#       zeropos_list = zeropos_list,
-#       lambda1 = lambda.path[k],
-#       lambda2 = .001,
-#       maxIter = maxIter,
-#       tol = 1e-7)
-#     
-#     # check if max degree s < n
-#     if(any(apply(res$bhat, 2, function(x) sum(abs(x) > 1e-4)) >= n)){
-#       cat("[INFO] lambda is too small, algorithm stops at k = ", k, "\n")
-#       break
-#     }
-#     saveRDS(res, file = paste0("baseline_lam_", k, ".rds"))
-#     cor_est <- cor(t(chol(res$thetahat)%*%(X - X%*%res$bhat)))
-#     minrowcor_bench[k] <- sum(abs(cor_est[upper.tri(cor_est)]))
-#     mle_result <- dag_mle_estimation(
-#       X = X, 
-#       Bhat = res$bhat, 
-#       Lhat = chol(res$thetahat)
-#     )
-#     saveRDS(mle_result, file = paste0("baselineMLE_lam_", k, ".rds"))
-#     BIC_result <- BIC_dag(
-#       X = X,
-#       bmle = mle_result$Bmle, 
-#       omgmle = mle_result$omgmlesq,
-#       theta = res$thetahat
-#     )
-#     BICscores_bench[k] <- BIC_result$BIC
-#     saveRDS(BICscores_bench, "BICscores_baseline.rds")
-#     saveRDS(minrowcor_bench, "minrowcor_baseline.rds")
-#   }
-# }
 
 sim_newalgo_ordered <- function(
   args, 
@@ -490,6 +488,8 @@ get_shd_ordered <- function(
   kbenchcor = NULL,
   k1iterbic = NULL,
   k1itercor = NULL,
+  kffbic = NULL,
+  kffcor = NULL,
   sim,
   simID,
   bstar_adj, 
@@ -540,11 +540,9 @@ get_shd_ordered <- function(
   # baseline_best_bic <- readRDS(file = paste0(simID, '--', sim, '/baseline_lam_', kbenchbic, '.rds'))
   bhat_adj <- 1*(abs(baseline_best_bic$bhat_1iter) > thresh)
   # bhat_adj <- 1*(abs(baseline_best_bic$bhat) > thresh)
-  
   shdXbaseline <- compute_SHD_dag(adj1 = bhat_adj, adj_true = bstar_adj, s0) %>% unlist()
   shdXbaseline['beta_l2err'] = norm(b0 - baseline_best_bic$bhat_1iter, type = '2')^2 / s0
   # shdXbaseline['beta_l2err'] = norm(b0 - baseline_best_bic$bhat, type = '2')^2 / s0
-  
   shdXbaseline['theta_l2err'] = -100
   output_ordered$shdXbaseline=shdXbaseline
   # minCor
@@ -552,13 +550,26 @@ get_shd_ordered <- function(
   # baseline_best_cor <- readRDS(file = paste0(simID, '--', sim, '/baseline_lam_', kbenchcor, '.rds'))
   bhat_adj <- 1*(abs(baseline_best_cor$bhat_1iter) > thresh)
   # bhat_adj <- 1*(abs(baseline_best_cor$bhat) > thresh)
-  
   shdXbaselineCor <- compute_SHD_dag(adj1 = bhat_adj, adj_true = bstar_adj, s0) %>% unlist()
   shdXbaselineCor['beta_l2err'] = norm(b0 - baseline_best_cor$bhat_1iter, type = '2')^2 / s0
   # shdXbaselineCor['beta_l2err'] = norm(b0 - baseline_best_cor$bhat, type = '2')^2 / s0
-  
   shdXbaselineCor['theta_l2err'] = -100
   output_ordered$shdXbaselineCor = shdXbaselineCor
+  # flipflop ----------------------------------------------------------------
+  # BIC
+  ff_best_bic <- readRDS(file = paste0(simID, '--', sim, '/ff_lam_', kffbic, '.rds'))
+  bhat_adj <- 1*(abs(ff_best_bic$bhat) > thresh)
+  shdXff <- compute_SHD_dag(adj1 = bhat_adj, adj_true = bstar_adj, s0) %>% unlist()
+  shdXff['beta_l2err'] = norm(b0 - ff_best_bic$bhat, type = '2')^2 / s0
+  shdXff['theta_l2err'] = norm(theta0 - ff_best_bic$thetahat, type = '2')^2 / n^2
+  output_ordered$shdXff=shdXff
+  # mincor
+  ff_best_cor <- readRDS(file = paste0(simID, '--', sim, '/ff_lam_', kffcor, '.rds'))
+  bhat_adj <- 1*(abs(ff_best_cor$bhat) > thresh)
+  shdXffCor <- compute_SHD_dag(adj1 = bhat_adj, adj_true = bstar_adj, s0) %>% unlist()
+  shdXffCor['beta_l2err'] = norm(b0 - ff_best_cor$bhat, type = '2')^2 / s0
+  shdXffCor['theta_l2err'] = norm(theta0 - ff_best_cor$thetahat, type = '2')^2 / n^2
+  output_ordered$shdXffCor = shdXffCor
   return(output_ordered)  
 }
 
@@ -573,14 +584,18 @@ process_output_ordered <- function(
   estimands <- readRDS('estimands.rds')
   bstar_adj <- 1*(abs(estimands$b) > 0)
   for(sim in 1:args$num_sim){
+    # BCD results
     BICscores_main <- readRDS(paste0(simID, '--', sim, '/BICscores_main.rds'))  
     minrowcor_main <- readRDS(paste0(simID, '--', sim, '/minrowcor_main.rds'))
-    
+    # BIC 1iter results
     BICscores_main1iter <- readRDS(paste0(simID, '--', sim, '/BICscores_1iter_main.rds'))  
     minrowcor_main1iter <- readRDS(paste0(simID, '--', sim, '/minrowcor_1iter_main.rds'))  
-    
+    # baseline 
     BICscores_baseline <- readRDS(paste0(simID, '--', sim, '/BICscores_baseline.rds')) 
     minrowcor_baseline <- readRDS(paste0(simID, '--', sim, '/minrowcor_baseline.rds'))
+    # flipflop
+    BICscores_ff <- readRDS(paste0(simID, '--', sim, '/BICscores_ff.rds')) 
+    minrowcor_ff <- readRDS(paste0(simID, '--', sim, '/minrowcor_ff.rds'))
     
     bestk_bic_main <- which.min(BICscores_main)
     bestk_cor_main <- which.min(minrowcor_main)
@@ -588,6 +603,9 @@ process_output_ordered <- function(
     bestk_cor_1iter <- which.min(minrowcor_main1iter)
     bestk_bic_baseline <- which.min(BICscores_baseline)
     bestk_cor_baseline <- which.min(minrowcor_baseline)
+    bestk_bic_ff <- which.min(BICscores_ff)
+    bestk_cor_ff <- which.min(minrowcor_ff)
+    
     SHD_stats <- get_shd_ordered(
       kmainbic = bestk_bic_main, 
       kmaincor = bestk_cor_main, 
@@ -595,6 +613,8 @@ process_output_ordered <- function(
       kbenchcor = bestk_cor_baseline,
       k1iterbic = bestk_bic_1iter,
       k1itercor = bestk_cor_1iter,
+      kffbic = bestk_bic_ff,
+      kffcor = bestk_cor_ff,
       sim = sim,
       simID = simID,
       bstar_adj = bstar_adj, 
@@ -621,15 +641,20 @@ get_all_shd_ordered <- function(
   allShdS <- vector(mode = "list", length = length(thrs))
   bstar_adj <- 1*(abs(estimands$b) > 0)
   for(sim in 1:num_sim){
+    cat(paste0("Processing sim ", sim, " ===========\n"))
     allshd <- readRDS(paste0(simID, "--", sim, '/SHDstats.rds'))
+    # baseline
     BICscores_baseline <- readRDS(paste0(simID, "--", sim, "/BICscores_baseline.rds"))
     minrowcor_baseline <- readRDS(paste0(simID, "--", sim, "/minrowcor_baseline.rds"))
-    
+    # BCD 1iter
     minrowcor_1iter <- readRDS(paste0(simID, "--", sim, "/minrowcor_1iter_main.rds"))
     BICscores_1iter <- readRDS(paste0(simID, "--", sim, "/BICscores_1iter_main.rds"))
-    
+    # BCD main
     BICscores_main <- readRDS(paste0(simID, "--", sim, "/BICscores_main.rds"))
     minrowcor_main <- readRDS(paste0(simID, "--", sim, "/minrowcor_main.rds"))
+    # ff
+    BICscores_ff <- readRDS(paste0(simID, "--", sim, "/BICscores_ff.rds"))
+    minrowcor_ff <- readRDS(paste0(simID, "--", sim, "/minrowcor_ff.rds"))
     
     bestk_bic_main <- which.min(BICscores_main)
     bestk_cor_main <- which.min(minrowcor_main)
@@ -637,8 +662,12 @@ get_all_shd_ordered <- function(
     bestk_cor_baseline <- which.min(minrowcor_baseline)
     bestk_bic_1iter <- which.min(BICscores_1iter)
     bestk_cor_1iter <- which.min(minrowcor_1iter)
+    bestk_bic_ff = which.min(BICscores_ff)
+    bestk_cor_ff = which.min(minrowcor_ff)
     
     for(j in 1:length(thrs)){
+      cat("------------------------------\n")
+      cat(paste0("Compute threshold = ", thrs[j], "\n"))
       allShdS[[j]] <- get_shd_ordered(
         kmainbic = bestk_bic_main, 
         kmaincor = bestk_cor_main, 
@@ -646,6 +675,8 @@ get_all_shd_ordered <- function(
         kbenchcor = bestk_cor_baseline,
         k1iterbic = bestk_bic_1iter,
         k1itercor = bestk_cor_1iter,
+        kffbic = bestk_bic_ff,
+        kffcor = bestk_cor_ff,
         sim = sim,
         simID = simID,
         bstar_adj = bstar_adj, 
@@ -656,6 +687,7 @@ get_all_shd_ordered <- function(
       )
     }
     saveRDS(allShdS, file = paste0(simID, '--', sim, "/allShdS.rds"))
+    # match baseline edges E with BCD
     bestbenchBIC <- which.min(sapply(
       allShdS, 
       function(x) abs(x$shdXbaseline['pnum'] - allshd$shdXmain['pnum'])
@@ -664,8 +696,22 @@ get_all_shd_ordered <- function(
       allShdS, 
       function(x) abs(x$shdXbaselineCor['pnum'] - allshd$shdXmainCor['pnum'])
     ))
+    
+    # match ff edges E with BCD
+    bestffBIC <- which.min(sapply(
+      allShdS, 
+      function(x) abs(x$shdXff['pnum'] - allshd$shdXmain['pnum'])
+    ))
+    bestffCor <- which.min(sapply(
+      allShdS, 
+      function(x) abs(x$shdXffCor['pnum'] - allshd$shdXmainCor['pnum'])
+    ))
+    
     allshd$shdXbaseline <- allShdS[[bestbenchBIC]]$shdXbaseline
     allshd$shdXbaselineCor <- allShdS[[bestbenchCor]]$shdXbaselineCor
+    allshd$shdXff <- allShdS[[bestffBIC]]$shdXff
+    allshd$shdXffCor <- allShdS[[bestffCor]]$shdXffCor
+    
     saveRDS(allshd, paste0(simID, "--", sim, "/SHDclose.rds"))
     cat("[INFO] Sim", sim, "is done. \n")
   }
@@ -691,7 +737,9 @@ get_average_shd_ordered <- function(simID, nsim){
     shdXmain1iter=rep(0, num_statistic),
     shdXmainCor=rep(0, num_statistic),
     shdXbaselineCor=rep(0, num_statistic),
-    shdXmain1iterCor=rep(0, num_statistic)
+    shdXmain1iterCor=rep(0, num_statistic),
+    shdXff = rep(0, num_statistic),
+    shdXffCor = rep(0, num_statistic)
   )
   for (sim in 1:nsim){
     allshd <- as.data.frame(
@@ -1245,7 +1293,7 @@ get_roc_plots <- function(simID, ymin=50, xmax=101, thrLen=20){
   setwd(paste0("output/",simID))
   args <- readRDS('args.rds')
   estimands <- readRDS('estimands.rds')
-  rocmain <- rocbench <- array(data = 0, dim = c(2, thrLen))
+  rocmain <- rocbench <- rocff <-  array(data = 0, dim = c(2, thrLen))
   
   for(sim in 1:args$num_sim){
     allShdS <- readRDS(paste0(simID, '--', sim, '/allShdS.rds'))  
@@ -1253,18 +1301,23 @@ get_roc_plots <- function(simID, ymin=50, xmax=101, thrLen=20){
                                                TP = x$shdXmain['TP'] ))
     rocbench__ <- sapply(allShdS, function(x) c(FP =(x$shdXbaseline['pnum'] - x$shdXbaseline['TP']),
                                                 TP = x$shdXbaseline['TP']))
+    rocff__  <- sapply(allShdS, function(x) c(FP =(x$shdXff['pnum'] - x$shdXff['TP']),
+                                              TP = x$shdXff['TP']))
+    
     rocmain <- rocmain + rocmain__
     rocbench <- rocbench + rocbench__
+    rocff <- rocff + rocff__
   }
   rocmain <- rocmain / thrLen
   rocbench <- rocbench / thrLen
+  rocff <- rocff / thrLen
   
 
   # ymax <- 120
   # xmax <- min(estimands$s0,max(rocmain[1,]))
   xmin <- 0
-  ymax <- min(estimands$s0, max(rocmain[2,]))
-  # ymax = 83
+  # ymax <- min(estimands$s0, max(rocmain[2,]))
+  ymax = 83
   
   setEPS()
   postscript(paste0(args$setting, ".eps"))
@@ -1291,6 +1344,11 @@ get_roc_plots <- function(simID, ymin=50, xmax=101, thrLen=20){
          lty = 5,
          lwd = 4,
          type="l")
+  points(t(rocff),
+         col = "green",
+         lty = 5,
+         lwd = 4,
+         type="l")
   axis(
     side = 1, 
     at = seq(xmin, xmax, length.out = 5),
@@ -1301,8 +1359,8 @@ get_roc_plots <- function(simID, ymin=50, xmax=101, thrLen=20){
     at = seq(ymin, ymax,length.out = 5), 
     labels = round(seq(ymin, ymax,length.out = 5),1),
     cex.axis = 2.3)
-  legend("bottomright", legend = c("BCD", "Baseline"),
-         col = c("red", "blue"), lty = c(4,5), lwd = c(4,4),
+  legend("bottomright", legend = c("BCD", "Baseline", "KGL"),
+         col = c("red", "blue", "green"), lty = c(5,5,5), lwd = c(4,4,4),
          cex = 2)
   # legend("bottomright", legend = c("BCD"),
   #        col = c("red"), lty = c(4))
@@ -1349,7 +1407,7 @@ get_shd_ji_diff <- function(simIDarr){
 }
 
 
-plot_boxplot_shd <- function(shd_data, nsim=10, nmethod=3){
+plot_boxplot_shd_ja <- function(shd_data, nsim=10, nmethod=3){
   setwd('~/Documents/research/dag_network/output/')
   thetas = c("Equalcorr", "Toeplitz", "Star", "ExpDecay", "AR")
   mydata <- data.frame(
@@ -1384,22 +1442,23 @@ plot_shd_util <- function(df, theta_type="Equal corr"){
   postscript(paste0(theta_type, "-shd.eps"))
   par(mar = c(2,2,2,2))
   plt <- ggplot(df, aes(x = label, y = shddiff)) + 
-    geom_boxplot(aes(fill = method), width=.3) + 
+    geom_boxplot(aes(fill = method), width=1.5) + 
     xlab("Sample size (n, p)") + 
     ylab("Decrease in SHD") + 
     # facet_grid(.~label) +
     geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 1.5) + 
     theme(
-      strip.text.x = element_text(size = 18),
+      strip.text.x = element_text(size = 25),
       panel.background = element_blank(),
       panel.grid.minor = element_blank(),
       # panel.border = element_rect(color = "black", fill = NA),
       axis.line = element_line(colour = "black"),
-      axis.title=element_text(size=25,face="bold"),
-      axis.text = element_text(size=25),
-      legend.text=element_text(size=20),
+      # axis.title=element_text(size=30,face="bold"),
+      axis.title=element_blank(),
+      axis.text = element_text(size=30),
+      legend.text=element_text(size=30),
       # axis.text.x=element_blank(),
-      legend.title = element_text(size = 20),
+      legend.title = element_text(size = 30),
       strip.background = element_rect(color = "black", fill = "white")
     ) + 
     scale_x_discrete(labels=c("n<p" = "(100, 200)", "n>p" = "(300, 100)"))
@@ -1412,22 +1471,23 @@ plot_ja_util <- function(df, theta_type="Equal corr"){
   postscript(paste0(theta_type, "-ja.eps"))
   par(mar = c(2,2,2,2))
   plt <- ggplot(df, aes(x = label, y = jadiff)) + 
-    geom_boxplot(aes(fill = method), width=.3) + 
+    geom_boxplot(aes(fill = method), width=1.5) + 
     xlab("Sample size (n, p)") + 
     ylab("Increase in Jaccard index") + 
     # facet_grid(.~label) +
     geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 1.5) + 
     theme(
-      strip.text.x = element_text(size = 18),
+      strip.text.x = element_text(size = 25),
       panel.background = element_blank(),
       panel.grid.minor = element_blank(),
       # panel.border = element_rect(color = "black", fill = NA),
       axis.line = element_line(colour = "black"),
-      axis.title=element_text(size=25,face="bold"),
-      axis.text = element_text(size=25),
-      legend.text=element_text(size=20),
+      # axis.title=element_text(size=30,face="bold"),
+      axis.title=element_blank(),
+      axis.text = element_text(size=30),
+      legend.text=element_text(size=30),
       # axis.text.x=element_blank(),
-      legend.title = element_text(size = 20),
+      legend.title = element_text(size = 30),
       strip.background = element_rect(color = "black", fill = "white")
     ) + 
     scale_x_discrete(labels=c("n<p" = "(100, 200)", "n>p" = "(300, 100)"))
