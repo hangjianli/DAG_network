@@ -4,8 +4,8 @@ flipflop <- function(
   zeropos_list,
   block_idx=NULL,
   lambda2=100,
-  lambda1=100,
-  maxIter=100
+  lambda1=20,
+  maxIter=10
 ){
   
   n <- dim(X)[1]
@@ -52,6 +52,10 @@ flipflop <- function(
       zeropos_list = zeropos_list,
       block_idx = block_idx
     )
+    
+    if (det(psi_est_inv) > 1e10 || det(psi_est_inv)< 1e-10){
+      stop('The determinant of psi_est is unstable! \n')
+    }
     
     total.likeli[iter] <- -n*log(det(psi_est_inv)) -
       p*log(det(theta_est)) + sum(diag(theta_est%*%X%*%psi_est_inv%*%t(X))) +

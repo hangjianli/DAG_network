@@ -182,33 +182,6 @@ dag_mle_estimation <- function(Bhat, Lhat, X){
 }
 
 
-BIC_dag <- function(X, block_idx, bmle, omgmle, theta){
-  n <- dim(X)[1]
-  p <- dim(X)[2]
-  s0 <- sum(abs(bmle) > 1e-4)
-  t0 <- as.integer((sum(abs(theta) > 1e-4) - n) / 2)
-  LX <- chol(theta)%*%X
-  test.temp <- (LX - LX%*%bmle)%*%diag(1/sqrt(omgmle))
-  test.res <- apply(test.temp,2,tcrossprod)
-  S <- matrix(rowSums(test.res),n,n)
-  tracetrm <- sum(diag(S))
-  if(!is.null(block_idx)){
-    thetatrm <- -p*sum(sapply(block_idx, function(x){log(det(as.matrix(theta[x,x])))}))  
-  }else{
-    thetatrm <- -p*log(det(theta))
-  }
-  negloglikelihood <- n*sum(log(omgmle)) + thetatrm + tracetrm
-  # fn <- log(max(n,p)) * (s0 + t0) 
-  fn <- 1 * (s0 + t0) 
-  BIC <- negloglikelihood + fn
-  return(list(BIC = BIC,
-              negloglikelihood = negloglikelihood,
-              s0 = s0,
-              penalty=fn,
-              thetatrm=thetatrm
-  ))
-}
-
 # GES ---------------------------------------------------------------------
 get_adjmat_from_fges <- function(edgelist, p, varnames){
   # return adjmatrix of cpdag
@@ -526,11 +499,12 @@ get_shd_for_several_methods <- function(kmainbic = NULL, kmaincor = NULL,
 }
 
 
-get_lam_path <- function(p, XX, rho.est, lambda.len, div=100){
+get_lam_path <- function(p, XX, rho.est, lambda.len, div=100, div2=1000){
+  # lambda values in descending order
   lambda.max <- rep(0, p)
   for(i in 1:(p-1)) lambda.max[i+1] <- norm(2*t(XX[,1:i])%*%(XX[,i+1]*rho.est[i+1]), type = "i")
   lambda.max <- max(lambda.max)
-  lambda.path <- lseq(lambda.max/div, lambda.max/10, lambda.len)
+  lambda.path <- lseq(lambda.max/div, lambda.max/div2 , lambda.len)
   return(lambda.path)
 }
 

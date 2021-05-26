@@ -118,7 +118,7 @@ plot_cpdag(fgesdag)
 plot_cpdag(pcdag_original)
 plot_cpdag(pcdag)
 plot_cpdag(sbndag_original)
-plot_cpdag(sbndag,rescale = T)
+plot_cpdag(sbndag)
 
 
 

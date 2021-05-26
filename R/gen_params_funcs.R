@@ -57,11 +57,11 @@ generate_parameters <- function(
   theta_name = NULL
 ){
   if(args$bchoice == "y") {
-    cat("B was generated from data. \n")
+    cat("B will be generated from data... \n")
     if(is.null(bname))
-      bname = readline(prompt = "Pick a dataset: >> ")
+      bname = readline(prompt = "Pick a dataset from bnlearn: >> ")
     if(is.null(btype))
-      btype = readline(prompt = "discrete or continuous? >> ")
+      btype = readline(prompt = "Is B discrete or continuous? >> ")
     btrue <- try({constrB_from_BNrepo(name = bname, type = btype, ncopy = args$ncopy)})
     while(class(btrue) == 'try-error'){
       bname = readline(prompt = "Pick a dataset: >> ")
@@ -77,6 +77,9 @@ generate_parameters <- function(
     pp <- b.temp$pp
   }
   if(args$thetachoice == "y"){
+    cat("Theta will be generated from data... \n")
+    if(is.null(theta_name))
+      theta_name = readline(prompt = "Pick a dataset for theta: >> ")
     cat(paste0("Theta was generated from ", theta_name, " data set.\n"))
     theta.temp <- try({gen.theta.from.data(name_theta = theta_name, 
                                       block_size = args$block_size,
@@ -143,7 +146,7 @@ gen.B <- function(p, b.mag = 1, s0= 2*p, seed = 482, lower.thresh = 0.1){
 
 
 ## Given structure 
-gen.B.from.btrue <- function(p, B_true, seed = 394, btype = NULL, lower.thresh = 0.1, b.mag = 1){
+gen.B.from.btrue <- function(p, B_true, seed = 394, btype = NULL, lower.thresh = 0.5, b.mag = 0.8){
   # B_true is the adjacency matrix
   if(btype == "continuous"){
     s0 <- sum(abs(B_true)>0)
@@ -243,7 +246,10 @@ gen.theta.from.data <- function(name_theta, block_size = 20, n = 500, seed=5){
     cat("True N is ", trueN, "\n")
     stop("N is smaller than n from data. \n")
   }
-  adjmat <- adjmat[1:n, 1:n]
+  N = dim(adjmat)[1]
+  set.seed(seed)
+  start = sample(N-n, 1)
+  adjmat <- adjmat[start:(start+n-1), start:(start+n-1)]
   # image(as(adjmat, class(estimands$theta)))
   
   num_blocks = ceiling(n/block_size)
@@ -253,17 +259,14 @@ gen.theta.from.data <- function(name_theta, block_size = 20, n = 500, seed=5){
   for(i in 1:num_blocks){
     samp_ind <- sample(n, block_size)
     # blocks[[i]] <- as.matrix(adjmat[(1 + (i-1)*block_size): min(i*block_size, n), (1 + (i-1)*block_size): min(i*block_size,n)])
-    blocks[[i]] <- as.matrix(adjmat[samp_ind, samp_ind])
+    theta <- as.matrix(adjmat[samp_ind, samp_ind])
     # blocks[[i]][blocks[[i]] == 1] <- 0.7
-    blocks[[i]][blocks[[i]] == 1] <- runif(n = sum(blocks[[i]]),-4,4)
-    blocks[[i]] <- (blocks[[i]] + t(blocks[[i]])) / 2
-    diag(blocks[[i]]) <- 1
-    while(!is.positive.definite(blocks[[i]])) {
-      diag(blocks[[i]]) <- diag(blocks[[i]]) + 1
-      cat("Added 1 to diagonal. \n")
-    }
-    sig <- cov2cor(solve(blocks[[i]]))
-    blocks[[i]] <- round(solve(sig),5)
+    theta[theta == 1] <- runif(n = sum(theta),-5,5)
+    theta <- (theta+ t(theta)) / 2
+    theta = theta - (min(eigen(theta)$value)-.1) * diag(n)
+    # sig <- cov2cor(solve(theta))
+    # blocks[[i]] <- round(solve(sig),5)
+    blocks[[i]] <- round(solve(theta), 5)
     zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
   }
   theta <- do.call(bdiag, blocks)
@@ -365,17 +368,15 @@ gen.theta <- function(struct = 'exp.decay',
            for(i in 1:num_blocks){
              if(i == num_blocks)
                block_size = n - (num_blocks-1)*block_size
-             blocks[[i]] <- matrix(1,block_size, block_size)
-             diag(blocks[[i]])[2:block_size] <- sample(3:10, size = 1)
-             # sig <- cov2cor(blocks[[i]])
-             sig <- blocks[[i]]
-             blocks[[i]] <- round(solve(sig),5)
-             
+             blocks[[i]] <- matrix(0,block_size, block_size)
+             diag(blocks[[i]]) = 1
+             blocks[[i]][1, 2:block_size] = (1 / (block_size-1)) - 0.01
+             blocks[[i]][2:block_size, 1] = (1 / (block_size-1)) - 0.01
+             theta <- blocks[[i]]
              if(!is.positive.definite(blocks[[i]])) stop("Theta is not positive definite !!!")
              zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
            }
            theta <- do.call(bdiag, blocks)
-           theta[abs(theta) < 1e-3] = 0
            sig <- round(solve(theta),5)
          },
          "equi.cor" = {
