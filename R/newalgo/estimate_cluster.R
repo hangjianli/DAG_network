@@ -5,7 +5,6 @@ source("R/loadpackages.R")
 source("R/helper_funcs.R")
 source("R/gen_params_funcs.R")
 source("R/newalgo/functions.R")
-
 setwd("~/Documents/research/dag_network/")
 
 targetgene <- readRDS("data/single_cell_data/sig_genes_log_val.rds")
@@ -90,7 +89,7 @@ sim_data <- two_step_cluster(
 )
 sim_data$block_idx %>% length()
 # sim_data <- readRDS('sim_data.rds')
-saveRDS(sim_data, 'sim_data.rds')
+# saveRDS(sim_data, 'sim_data.rds')
 
 X = apply(sim_data$df, 2, scale, scale=F)
 rownames(X) <- rownames(sim_data$df)

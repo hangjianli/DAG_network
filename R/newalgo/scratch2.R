@@ -3,7 +3,7 @@ setwd("~/Documents/research/dag_network")
 # estimands <- readRDS("~/Documents/research/dag_network/output/121006/estimands.rds")
 nsim = args$num_sim
 # nsim = 1
-for(sim in 2:2){
+for(sim in 3:10){
   # dir.create(path = paste0("output/",args$setting, "/", args$setting, "--", sim))
   setwd(paste0("output/",args$setting, "/", args$setting, "--", sim))
   con <- file("test2.log")
@@ -18,11 +18,11 @@ for(sim in 2:2){
     X = X,
     block_size = args$block_size,
     zeropos_list = estimands$zeropos_list,
-    lambda_len = 1,
-    lambdaff_max = 50,
-    lambdaff_min = 10,
-    maxIter = 4,
-    lambda2 = 100
+    lambda_len = 10,
+    lambdaff_max = 200,
+    lambdaff_min = 50,
+    maxIter = 5,
+    lambda2 = 20
   )
   sink() 
   sink(type="message")

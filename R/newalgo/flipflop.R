@@ -16,7 +16,7 @@ flipflop <- function(
   psi_old <- matrix(0, p, p)
   theta_old <- matrix(0, n, n)
   theta_diff_ <- psi_diff_ <- 1
-  iter <- 0
+  iter <- 1
   loss_his <- vector(length = maxIter)
   if(n < p){
     theta_est <- solve(cov(t(X)))  
@@ -53,12 +53,12 @@ flipflop <- function(
       block_idx = block_idx
     )
     
-    if (det(psi_est_inv) > 1e10 || det(psi_est_inv)< 1e-10){
-      stop('The determinant of psi_est is unstable! \n')
-    }
+    # if (det(psi_est_inv) > 1e10 || det(psi_est_inv)< 1e-10){
+    #   stop('The determinant of psi_est is unstable! \n')
+    # }
     
-    total.likeli[iter] <- -n*log(det(psi_est_inv)) -
-      p*log(det(theta_est)) + sum(diag(theta_est%*%X%*%psi_est_inv%*%t(X))) +
+    total.likeli[iter] <- -n*sum(log(eigen(psi_est_inv)$values))-
+      p*sum(log(eigen(theta_est)$values)) + sum(diag(theta_est%*%X%*%psi_est_inv%*%t(X))) +
       lambda2*sum(abs(theta_est)) + lambda1*sum(abs(psi_est_inv))
     
     theta_diff_ <- norm((theta_old - theta_est), "f") / n
@@ -70,7 +70,7 @@ flipflop <- function(
     
     cat("[INFO] Iter: ", iter, "\n")
     cat("[INFO] theta_diff: ", theta_diff_, "psi_diff: ", psi_diff_, "\n")
-    iter <- iter + 1
+    
     if(iter == 1){
       cat("[INFO] Saving estimates after one iteration. \n")
       psi_est <- solve(psi_est_inv)
@@ -81,6 +81,7 @@ flipflop <- function(
       
       thetahat_1iter <- thetahat
     }
+    iter <- iter + 1
     Sys.sleep(0.1)
     flush.console()
     
@@ -97,7 +98,7 @@ flipflop <- function(
   return(list(
     psi_est=psi_est,
     bhat=bhat, 
-    omega2hat = as.numeric(D),
+    omega2hat = as.numeric(diag(D)),
     bhat_1iter = bhat_1iter,
     thetahat=theta_est,
     thetahat_1iter=thetahat_1iter,

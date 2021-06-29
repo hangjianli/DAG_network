@@ -241,37 +241,38 @@ gen.theta.from.data <- function(name_theta, block_size = 20, n = 500, seed=5){
   adjmat <- get.adjacency(graph = graph_from_edgelist(el = as.matrix(mydata[,1:2]), directed = F))
   adjmat[adjmat == 2] <- 1
   diag(adjmat) <- 1
-  trueN <- dim(adjmat)[1]
-  if(trueN < n){
-    cat("True N is ", trueN, "\n")
-    stop("N is smaller than n from data. \n")
-  }
-  N = dim(adjmat)[1]
-  set.seed(seed)
-  start = sample(N-n, 1)
-  adjmat <- adjmat[start:(start+n-1), start:(start+n-1)]
+  N <- dim(adjmat)[1]
+  # set.seed(seed)
+  # start = sample(N-n, 1)
+  # adjmat <- adjmat[start:(start+n-1), start:(start+n-1)]
   # image(as(adjmat, class(estimands$theta)))
   
   num_blocks = ceiling(n/block_size)
   blocks <- vector(mode = "list", length = num_blocks) # blocks of sigma
   zeropos <- vector(mode = "list", length = num_blocks)
   set.seed(seed)
+  
+  cursize = n
+  
   for(i in 1:num_blocks){
-    samp_ind <- sample(n, block_size)
-    # blocks[[i]] <- as.matrix(adjmat[(1 + (i-1)*block_size): min(i*block_size, n), (1 + (i-1)*block_size): min(i*block_size,n)])
+    # block_size = min(cursize, block_size)
+    # cursize = cursize - block_size
+    samp_ind <- sample(1:N, block_size, replace = F)
+    # theta <- as.matrix(adjmat[(1 + (i-1)*block_size): min(i*block_size, n), (1 + (i-1)*block_size): min(i*block_size,n)])
     theta <- as.matrix(adjmat[samp_ind, samp_ind])
     # blocks[[i]][blocks[[i]] == 1] <- 0.7
     theta[theta == 1] <- runif(n = sum(theta),-5,5)
     theta <- (theta+ t(theta)) / 2
-    theta = theta - (min(eigen(theta)$value)-.1) * diag(n)
+    theta = theta - (min(eigen(theta)$value)-.1) * diag(dim(theta)[1])
     # sig <- cov2cor(solve(theta))
     # blocks[[i]] <- round(solve(sig),5)
-    blocks[[i]] <- round(solve(theta), 5)
+    blocks[[i]] <- round(solve(theta), 3)
     zeropos[[i]] <- which(abs(as.matrix(blocks[[i]])) < 1e-3, arr.ind = T)
   }
   theta <- do.call(bdiag, blocks)
+  theta <- theta[1:n, 1:n]
   theta[abs(theta) < 1e-3] = 0
-  sig <- round(solve(theta),5)
+  sig <- round(solve(theta),3)
   
   return(list(theta=theta, sig=sig, theta_type=name_theta, zeropos=zeropos))
 }
