@@ -308,7 +308,7 @@ BIC_dag <- function(X, block_idx=NULL, bmle, omgmle, theta){
   # fn <- 1 * (s0 + t0) 
   BIC <- negloglikelihood + fn
   return(list(BIC = BIC,
-              negloglikelihood = negloglikelihood,
+              negloglikelihood = negloglikelihood / 2,
               s0 = s0,
               penalty=fn,
               thetatrm=thetatrm
