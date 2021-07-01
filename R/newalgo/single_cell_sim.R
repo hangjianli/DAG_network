@@ -83,7 +83,7 @@ res$block_idx %>% length()
 # run sim -----------------------------------------------------------------
 
 dir.create(path = "output/single_cell13")
-setwd(dir = "output/single_cell13")
+setwd(dir = "output/single_cell50")
 
 networkDAG_sol_path(
   # X = res$subsetXp,
@@ -114,11 +114,11 @@ sbndag <- readRDS("adjmat_sparsebn_CPDAG_decor.rds")
 sbndag_original <- readRDS("adjmat_sparsebn_CPDAG.rds")
 
 plot_cpdag(fgesdag_original)
-plot_cpdag(fgesdag)
+plot_cpdag(fgesdag, file = 'ges_cpdag')
 plot_cpdag(pcdag_original)
-plot_cpdag(pcdag)
+plot_cpdag(pcdag, file='pc_cpdag')
 plot_cpdag(sbndag_original)
-plot_cpdag(sbndag)
+plot_cpdag(sbndag, file='sbn_cpdag')
 
 
 

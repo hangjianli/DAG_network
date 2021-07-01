@@ -70,7 +70,7 @@ sim_data <- list(
 )
 
 # main ---------------------------------------------------------------------
-sim_name = 54
+sim_name = 51
 dir.create(path = paste0("~/Documents/research/dag_network/output/single_cell",sim_name))
 setwd(dir = paste0("~/Documents/research/dag_network/output/single_cell", sim_name))
 
@@ -84,7 +84,8 @@ sim_data <- two_step_cluster(
   targetgene = targetgene,
   sc_idx_full = sc_idx_full,
   method = 'complete',
-  corr_thr = c(0.835, 0.85, 0.78, 0.82, 0.845, 0.82, 0.81)
+  # corr_thr = c(0.835, 0.85, 0.78, 0.82, 0.845, 0.82, 0.81)
+  corr_thr = c(0.825, 0.837, 0.78, 0.80, 0.840, 0.82, 0.80)
   # corr_thr = rep(0.86, 7)
 )
 sim_data$block_idx %>% length()
@@ -181,11 +182,11 @@ sbndag <- readRDS("adjmat_sparsebn_CPDAG_decor.rds")
 sbndag_original <- readRDS("adjmat_sparsebn_CPDAG.rds")
 
 plot_cpdag(fgesdag_original)
-plot_cpdag(fgesdag)
+plot_cpdag(fgesdag, file = 'ges_cpdag')
 plot_cpdag(pcdag_original)
-plot_cpdag(pcdag)
+plot_cpdag(pcdag, file = 'pc_cpdag')
 plot_cpdag(sbndag_original)
-plot_cpdag(sbndag)
+plot_cpdag(sbndag, file = 'sbn_cpdag')
 
 
 # chi-square test --------------------------------------------------------------------

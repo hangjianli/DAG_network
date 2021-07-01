@@ -13,6 +13,8 @@ causal-cmd.log
 /JSM_presentation
 /literature
 /data
+/R/oldcode
+/R/trashbin
 #/data/*
 # !/data/single_cell_data
 
