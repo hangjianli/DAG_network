@@ -1,9 +1,9 @@
 # load packages----------------------------------------------------------------
 rm(list = ls())
 setwd("~/Documents/research/dag_network/")
-source("R/loadpackages.R")
-source("R/helper_funcs.R")
-source("R/gen_params_funcs.R")
+source("R/newalgo/loadpackages.R")
+source("R/newalgo/helper_funcs.R")
+source("R/newalgo/gen_params_funcs.R")
 source("R/newalgo/functions.R")
 source("R/newalgo/flipflop.R")
 

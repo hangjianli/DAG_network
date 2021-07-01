@@ -1383,26 +1383,55 @@ get_cell_block_idx <- function(cellnames){
   return(block_idx)
 }
 
-plot_cpdag <- function(cpdag, rescale = T){
+
+
+radian.rescale <- function(x, start=0, direction=1) {
+  c.rotate <- function(x) (x + start) %% (2 * pi) * direction
+  c.rotate(scales::rescale(x, c(0, 2 * pi), range(x)))
+}
+
+
+
+plot_cpdag <- function(cpdag, rescale = F){
   idx <- which(cpdag !=0, arr.ind=T)
   edgelist <- cbind(rownames(cpdag)[idx[,"row"]], colnames(cpdag)[idx[,"col"]])
   g <- graph_from_edgelist(edgelist)
-  # V(g)$label.cex = 
+  la <- layout.circle(g)
+  lab.locs <- radian.rescale(x=1:length(V(g)), direction=-1, start=0)
   if(rescale){
     plot(g, 
+         layout = la,
+         vertex.label.degree = lab.locs,
          # layout = layout.fruchterman.reingold,
          edge.arrow.size=0.6, vertex.size=0.1, 
          vertex.label.dist=0.5,
          vertex.label.cex = 1.5)
   }else{
-    plot(g, 
-         rescale = rescale,
+    plot(g, layout=la, 
+         edge.arrow.size=0.4,
+         edge.color = "black",
+         vertex.label.cex=1, 
+         vertex.label.degree = lab.locs,
+         vertex.label.dist=1.1,
+         vertex.label.family="Helvetica",
+         vertex.label.font=2,
+         vertex.shape="circle", 
+         vertex.size=2, 
+         vertex.label.color="black", 
+         edge.width=1, 
+         rescale = F,
          asp = 0,
-         ylim=c(-25,25),xlim=c(-30,30),
-         # layout = layout.fruchterman.reingold,
-         edge.arrow.size=0.6, vertex.size=0.1, 
-         vertex.label.dist=0.2,
-         vertex.label.cex = 1.5)
+         ylim=c(-1,1),xlim=c(-1,1)
+    )
+    
+    # plot(g, 
+    #      rescale = rescale,
+    #      asp = 0,
+    #      ylim=c(-25,25),xlim=c(-30,30),
+    #      # layout = layout.fruchterman.reingold,
+    #      edge.arrow.size=0.6, vertex.size=0.1, 
+    #      vertex.label.dist=0.2,
+    #      vertex.label.cex = 1.5)
   }
 }
 
