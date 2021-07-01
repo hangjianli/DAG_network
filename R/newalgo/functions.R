@@ -1392,10 +1392,23 @@ radian.rescale <- function(x, start=0, direction=1) {
 
 
 
-plot_cpdag <- function(cpdag, rescale = F){
+plot_cpdag <- function(cpdag, rescale = F, file){
+  source("~/Documents/research/dag_network/R/newalgo/igraphplot2.R")
+  # cpdag = fgesdag
+  environment(plot.igraph2) <- asNamespace('igraph')
+  environment(igraph.Arrows2) <- asNamespace('igraph')
   idx <- which(cpdag !=0, arr.ind=T)
   edgelist <- cbind(rownames(cpdag)[idx[,"row"]], colnames(cpdag)[idx[,"col"]])
-  g <- graph_from_edgelist(edgelist)
+  dir <- rep(T, dim(edgelist)[1])
+  for(i in 1:length(dir)){
+    if (cpdag[edgelist[i,2], edgelist[i,1]] == 1){
+      dir[i] = F
+    }
+  }
+  cat("Number of undirected edges is: ", sum(!dir) / 2)
+  df <- data.frame(cbind(edgelist, dir))
+  df$dir <- dir
+  g <- graph_from_data_frame(df)  
   la <- layout.circle(g)
   lab.locs <- radian.rescale(x=1:length(V(g)), direction=-1, start=0)
   if(rescale){
@@ -1407,12 +1420,16 @@ plot_cpdag <- function(cpdag, rescale = F){
          vertex.label.dist=0.5,
          vertex.label.cex = 1.5)
   }else{
-    plot(g, layout=la, 
-         edge.arrow.size=0.4,
-         edge.color = "black",
-         vertex.label.cex=1, 
+    setEPS()
+    postscript(paste0(file, ".eps"))
+    # par(mar = c(2,2,2,2))
+    plot.igraph2(g, layout=la, 
+         edge.arrow.size= c(0.4,0.4)[as.factor(edge_attr(g, 'dir'))],
+         # edge.color = "black",
+         edge.color = c('grey', "grey")[as.factor(edge_attr(g, 'dir'))],
+         vertex.label.cex=0.7, 
          vertex.label.degree = lab.locs,
-         vertex.label.dist=1.1,
+         vertex.label.dist=1.5,
          vertex.label.family="Helvetica",
          vertex.label.font=2,
          vertex.shape="circle", 
@@ -1423,6 +1440,7 @@ plot_cpdag <- function(cpdag, rescale = F){
          asp = 0,
          ylim=c(-1,1),xlim=c(-1,1)
     )
+    dev.off()
     
     # plot(g, 
     #      rescale = rescale,
@@ -1489,7 +1507,7 @@ two_step_cluster <- function(
          hang = 0.03,
          cex.lab = 1.5)
     sub_grp <- cutree(cell.tree, h = 1-corr_thr[i])
-    saveRDS(table(sub_grp), file = paste0('sub_grp_', i, '.rds'))
+    # saveRDS(table(sub_grp), file = paste0('sub_grp_', i, '.rds'))
     cat("[INFO] Cell type", i, ". Size of the largest cluster is: ", max(table(sub_grp)), "\n")
     targetgene_subset <- targetgene[(rownames(targetgene) %in% names(sub_grp)), ]  
     # reorder the rows here so that theta is block-diagonal

@@ -13,6 +13,9 @@ causal-cmd.log
 /JSM_presentation
 /literature
 /data
+/R/oldcode
+/R/trashbin
+/newR
 #/data/*
 # !/data/single_cell_data
 
@@ -20,7 +23,7 @@ causal-cmd.log
 .RData
 
 # Ignore pycharm files
-.idea/*
+.idea/
 .idea/misc.xml
 .Rproj.user
 
