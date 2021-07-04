@@ -118,14 +118,7 @@ process_output_unordered_tmp <- function(
 
 
 simIDs = c(
-  '501',
-  '502',
-  '503',
-  '504',
-  '505',
-  '506',
-  '507',
-  '508'
+  '603','605'
 )
 
 # shd_average <- readRDS("~/Documents/research/dag_network/output/101/shd_average.rds")
@@ -163,10 +156,7 @@ for(simID in simIDs){
 
 
 # unordered cases ---------------------------------------------------------
-gg_color_hue <- function(n) {
-  hues = seq(15, 375, length = n + 1)
-  hcl(h = hues, l = 65, c = 100)[1:n]
-}
+
 n = 2
 cols = gg_color_hue(n)
 
@@ -190,13 +180,11 @@ simIDs = c(
   # '121003',
   # '121005',
 # '121006')
-'101',
-'002',
-'003',
-'007',
-'004')
+# '701',
+# '705',
+'703'
+)
 
-simID = '5502'
 
 setwd("~/Documents/research/dag_network")  
 for(simID in simIDs){

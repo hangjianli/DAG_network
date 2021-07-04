@@ -12,11 +12,19 @@ source("R/newalgo/flipflop.R")
 args <- args_for_parameter()  
 dir.create(path = paste0('output/', args$setting))
 saveRDS(args, file = paste0('output/', args$setting, "/args.rds"))
-estimands <- generate_parameters(args = args, seed = 5)
+estimands <- generate_parameters(
+  args = args, 
+  bname = 'hepar2',
+  btype = 'discrete',
+  theta_name = 'facebook',
+  theta_sparsity = 0.7,
+  seed = 30)
+
 image(estimands$theta, axes=T)
 image(as(estimands$b, class(estimands$theta)))
 estimands$b[estimands$b!=0] %>% as.numeric() %>% hist(breaks=20)
 estimands$theta[estimands$theta!=0] %>% as.numeric() %>% hist(breaks=20)
+# main_lam_6$thetahat[main_lam_6$thetahat!=0] %>% as.numeric %>% hist(breaks=20)
 saveRDS(estimands, file = paste0('output/', args$setting, "/estimands.rds"))
 estimands$s0
 # X_ <- sim_X(
@@ -34,41 +42,41 @@ simID <- args$setting
 sim_newalgo_ordered(
   args,
   estimands, 
-  start_sim=3,
+  start_sim=2,
   end_sim=10, 
   lamLen=10,
-  lambda2 = 20,
-  lambda1_max_div = 10,
-  lambda1_max_div2 = 400)
+  lambda2 = 1,
+  lambda1_max_div = 5,
+  lambda1_max_div2 = 100)
 
-estimands$theta[1:20,1:20]
-as(main_lam_6$thetahat[1:20,1:20], 'dgCMatrix')
-image(estimands$theta, axes=T)
+# as(main_lam_6$thetahat[1:10,1:10], 'dgCMatrix')
+# image(estimands$theta, axes=T)
+eigen(estimands$theta %>% round(digits = 2))$value
 
 # simID = '121006'
 # args <- readRDS(paste0("~/Documents/research/dag_network/output/", simID,"/args.rds"))
 # estimands <- readRDS(paste0("~/Documents/research/dag_network/output/", simID, "/estimands.rds"))
-process_output_ordered_tmp(
-  simID=args$setting,
-  estimands,
-  args,
-  start=5,
-  num_sim=10,
-  thr=0.1
-)
-get_average_shd_ordered(simID = args$setting, nsim = 10)
-
+# process_output_ordered_tmp(
+#   simID=args$setting,
+#   estimands,
+#   args,
+#   start=5,
+#   num_sim=10,
+#   thr=0.1
+# )
+# get_average_shd_ordered(simID = args$setting, nsim = 10)
+# 
 
 simID = args$setting
 process_output_ordered(simID = args$setting, estimands = estimands, 
-                       args = args, start = 3, num_sim = 10,  thr = 0.1)
-get_all_shd_ordered(simID = args$setting, estimands, start = 3, num_sim = 10)
-get_average_shd_ordered(simID = args$setting, nsim = 1)
+                       args = args, start = 2, num_sim = 10,  thr = 0.1)
+get_all_shd_ordered(simID = args$setting, estimands, start = 2, num_sim = 10)
+get_average_shd_ordered(simID = args$setting, nsim = 10)
 
 
-get_roc_plots_noff(simID = args$setting, ymin = 50, xmax = 200, thrLen = 50, start = 1, nsim = 10)
+get_roc_plots_noff(simID = args$setting, ymin = 100, xmax = 300, thrLen = 50, start = 1, nsim = 10)
 
-# shd_average <- readRDS("~/Documents/research/dag_network/output/101/shd_average.rds")
+ # shd_average <- readRDS("~/Documents/research/dag_network/output/101/shd_average.rds")
 # shd_average$shdXbaseline
 # shd_average$shdXff
 args <- readRDS(paste0("~/Documents/research/dag_network/output/", simID,"/args.rds"))
@@ -78,25 +86,33 @@ get_all_shd_ordered(simID = simID, estimands, args$num_sim)
 get_average_shd_ordered(simID = simID, nsim = as.numeric(args$num_sim))
 
 
-shd_average <- readRDS("~/Documents/research/dag_network/output/5514/shd_average.rds")
-xtable(t(shd_average), digits = c(0,1,1,1,3,3,1,1))
-
+shd_average <- readRDS("~/Documents/research/dag_network/output/605/shd_average.rds")
+xtable(t(shd_average), digits = c(0,1,1,1,3,3,1,3,3,1))
+shd_average
 
 
 # unordered  --------------------------------------------------------------
 
 rm(list = ls())
 setwd("~/Documents/research/dag_network/")
-source("R/loadpackages.R")
-source("R/helper_funcs.R")
-source("R/gen_params_funcs.R")
+source("R/newalgo/loadpackages.R")
+source("R/newalgo/helper_funcs.R")
+source("R/newalgo/gen_params_funcs.R")
 source("R/newalgo/functions.R")
 source("R/newalgo/flipflop.R")
 
 args <- args_for_parameter()  
 dir.create(path = paste0('output/', args$setting))
 saveRDS(args, file = paste0('output/', args$setting, "/args.rds"))
-estimands <- generate_parameters(args = args, seed = 11)
+estimands <- generate_parameters(
+  args = args, 
+  bname = 'hailfinder',
+  btype = 'discrete',
+  theta_name = 'celegans_n306',
+  theta_sparsity = 0.3,
+  seed = 30)
+
+  
 image(estimands$theta, axes=T)
 image(as(estimands$b, class(estimands$theta)))
 estimands$b[estimands$b!=0] %>% as.numeric() %>% hist(breaks=20)
@@ -104,22 +120,18 @@ estimands$theta[estimands$theta!=0] %>% as.numeric() %>% hist(breaks=20)
 saveRDS(estimands, file = paste0('output/', args$setting, "/estimands.rds"))
 estimands$s0
 
-estimands$theta[1:10,1:10]
-image(as(main_lam_7$thetahat, class(estimands$theta)))
-as(main_lam_7$thetahat[1:10,1:10], class(estimands$theta))
-
 setwd("~/Documents/research/dag_network")
-simID <- args$setting
+simID <- args$setting 
 sim_newalgo_unordered(
   args, 
   estimands, 
-  start_sim=1, 
+  start_sim=2, 
   end_sim=10,
   lamLen=10,
   lambda2 = 1,
-  lambda1_max_div = 20,
-  lambda1_max_div2 = 400)
-process_output_unordered(simID = simID, thr = 0.1, start = 1, nsim = 10)
+  lambda1_max_div = 5,
+  lambda1_max_div2 = 100)
+process_output_unordered(simID = simID, thr = 0.1, start = 2, nsim = 10)
 get_average_shd_unordered(simID = simID,start = 1, nsim = 10)
 
 
@@ -129,7 +141,8 @@ simIDarr = c(
 )
 simIDarr = c(
    # '5515','5505','5506', 
-    '5508', '5514'
+    '705','701',
+  '707'
 )
 
 for(simID in simIDarr){
@@ -144,22 +157,23 @@ for(simID in simIDarr){
     thr = 0.1
   )
   get_average_shd_unordered(simID = simID, start = 1, nsim = 10)
-  
 }
 
 
 
 
 
-simIDarr =c("5508", "5514")
+simIDarr =c("702")
 
 shd_data <- get_shd_ji_diff(simIDarr)
 # plot_boxplot_shd_ja(shd_data = shd_data)
 shd_data
 
 # library(xtable)
-xtable(shd_average, digits = c(0,0,0))
+shd_average <- readRDS("~/Documents/research/dag_network/output/705/shd_average.rds")
+xtable(t(shd_average), digits = c(0,1,1,1,3,3,1,1,5))
 
+nsim = 10
 mydata <- data.frame(
   shddiff = c(
     shd_data$shdgesdiff, 
@@ -176,19 +190,83 @@ mydata <- data.frame(
   #     rep(thetas, each=nsim), # 5 settings
   #     2), # (n < p) and (n ? p)
   #   3), # 3 methods
-  label = rep(rep(c("n<p", "n>p"), each = 10), 3),
-  method = rep(c("GES", "PC", "SBN"), each = nsim * 2)
+  label = rep(rep(c("n<p"), each = 10), 3),
+  method = rep(c("GES", "PC", "SBN"), each = nsim)
 )
 
-setwd("~/Documents/research/dag_network/output/5508")
+setwd("~/Documents/research/dag_network/output/705")
 
-plot_shd_util(subset(mydata, (abs(shddiff) < 1000)), theta_type = 'andes_facebook',
+plot_shd_util2(subset(mydata, (abs(shddiff) < 1000)), theta_type = 'barley_facebook',
               labels = c("n<p" = "(100, 192)", "n>p" = "(500, 192)"))
-plot_ja_util(subset(mydata, (abs(jadiff) < 0.1)), theta_type = 'hepar2_celegan',
+plot_ja_util2(subset(mydata, (abs(jadiff) < 0.1)), theta_type = 'barley_facebook',
              labels = c("n<p" = "(100, 280)", "n>p" = "(500, 280)"))
 
 
+plot_ja_util2 <- function(df, theta_type="Equal corr", labels=c("n<p" = "(100, 200)", "n>p" = "(300, 100)")){
+  scaleFUN <- function(x) sprintf("%.2f", x)
+  setEPS()
+  postscript(paste0(theta_type, "-ja.eps"))
+  par(mar = c(1,1,1,1))
+  plt <- ggplot(df, aes(y = jadiff)) + 
+    geom_boxplot(aes(fill = method), width=1.5) + 
+    # xlab("Sample size (n, p)") + 
+    ylab("Increase in Jaccard index") + 
+    # facet_grid(.~label) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 1.5) + 
+    theme(
+      # strip.text.x = element_text(size = 25),
+      panel.background = element_blank(),
+      panel.grid.minor = element_blank(),
+      # panel.border = element_rect(color = "black", fill = NA),
+      axis.line = element_line(colour = "black"),
+      # axis.title=element_text(size=30,face="bold"),
+      axis.title=element_blank(),
+      axis.text = element_text(size=30),
+      legend.text=element_text(size=30),
+      axis.text.x=element_blank(),
+      legend.title = element_text(size = 30),
+      strip.background = element_rect(color = "black", fill = "white")
+    ) + 
+    scale_x_discrete(labels=labels) + 
+    scale_y_continuous(labels = scaleFUN)
+  print(plt)
+  dev.off()
+}
 
+plot_shd_util2 <- function(
+  df, 
+  theta_type="Equal corr",
+  labels=c("n<p" = "(100, 200)", "n>p" = "(300, 100)")
+){
+  scaleFUN <- function(x) sprintf("%.2f", x)
+  setEPS()
+  postscript(paste0(theta_type, "-shd.eps"))
+  par(mar = c(1,1,1,1))
+  plt <- ggplot(df, aes(y = shddiff)) + 
+    geom_boxplot(aes(fill = method), width=1.5) + 
+    # xlab("Sample size (n, p)") + 
+    ylab("Decrease in SHD") + 
+    # facet_grid(.~label) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 1.5) + 
+    theme(
+      # strip.text.x = element_text(size = 25),
+      panel.background = element_blank(),
+      panel.grid.minor = element_blank(),
+      # panel.border = element_rect(color = "black", fill = NA),
+      axis.line = element_line(colour = "black"),
+      # axis.title=element_text(size=30,face="bold"),
+      axis.title=element_blank(),
+      axis.text = element_text(size=30),
+      legend.text=element_text(size=30),
+      axis.text.x=element_blank(),
+      legend.title = element_text(size = 30),
+      strip.background = element_rect(color = "black", fill = "white")
+    )+
+    scale_x_discrete(labels=labels) + 
+    scale_y_continuous(labels = scaleFUN)
+  print(plt)
+  dev.off()
+}
 
 # correct the theta errors for unordered sims -----------------------------
 

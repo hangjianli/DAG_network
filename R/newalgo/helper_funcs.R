@@ -12,6 +12,11 @@ hardthreshold <- function(A, thresh){
   return(A)
 }
 
+gg_color_hue <- function(n) {
+  hues = seq(15, 375, length = n + 1)
+  hcl(h = hues, l = 65, c = 100)[1:n]
+}
+
 # NLLelasnet <- function(phi,rho,theta, n, p, lam1, lam2, lam.e){
 #   test.temp <- X%*%(diag(rho) - phi)
 #   test.res <- apply(test.temp,2,tcrossprod)

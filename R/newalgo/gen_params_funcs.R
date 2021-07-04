@@ -54,6 +54,7 @@ generate_parameters <- function(
   seed = 10, 
   bname = NULL, 
   btype = NULL, 
+  theta_sparsity = 0.7,
   theta_name = NULL
 ){
   if(args$bchoice == "y") {
@@ -64,7 +65,7 @@ generate_parameters <- function(
       btype = readline(prompt = "Is B discrete or continuous? >> ")
     btrue <- try({constrB_from_BNrepo(name = bname, type = btype, ncopy = args$ncopy)})
     while(class(btrue) == 'try-error'){
-      bname = readline(prompt = "Pick a dataset: >> ")
+      bname = readline(prompt = "Pick a dataset from bnlearn: >> ")
       btype = readline(prompt = "discrete or continuous? >> ")
       btrue <- try({constrB_from_BNrepo(name = bname, type = btype, ncopy = args$ncopy)})
     }
@@ -81,9 +82,11 @@ generate_parameters <- function(
     if(is.null(theta_name))
       theta_name = readline(prompt = "Pick a dataset for theta: >> ")
     cat(paste0("Theta was generated from ", theta_name, " data set.\n"))
-    theta.temp <- try({gen.theta.from.data(name_theta = theta_name, 
-                                      block_size = args$block_size,
-                                      n = args$n, seed = seed)})
+    theta.temp <- try({gen.theta.from.data(
+      name_theta = theta_name, 
+      theta_sparsity =theta_sparsity,
+      block_size = args$block_size,
+      n = args$n, seed = seed)})
   }else{
     cat("Theta was generated from simulation.\n")
     theta.temp <- gen.theta(struct = args$theta_type, 
@@ -104,14 +107,14 @@ generate_parameters <- function(
   
   theta <- theta.temp$theta
   sig <- theta.temp$sig
-  zeropos <- which(abs(as.matrix(theta)) < 1e-3, arr.ind = T)
+  # zeropos <- which(abs(as.matrix(theta)) < 1e-3, arr.ind = T)
   zeropos_list <- theta.temp$zeropos
   
   return(list(omg = omg, omg.sq = omg.sq, 
               b = b, s0 = s0,
               zerosb = zerosb,
               theta = theta, sig = sig, 
-              zeropos = zeropos, 
+              # zeropos = zeropos, 
               zeropos_list = zeropos_list,
               realp = realp, pp = pp,
               bname = bname, btype = btype,
@@ -125,7 +128,7 @@ gen.omg <- function(p, seed = 23, iid=FALSE){
     return(list(omg = omg, omg.sq = omg.sq))
   }
   set.seed(seed)
-  omg <- runif(min = 0.1,max = 2,n = p) # omega's between 0,1
+  omg <- runif(min = 0.3,max = 2,n = p) # omega's between 0,1
   omg[1] <- 1  
   omg.sq <- omg^2
   return(list(omg = omg, omg.sq = omg.sq))
@@ -236,7 +239,7 @@ block.func <- function(x, eps){
   return(x)
 }
 
-gen.theta.from.data <- function(name_theta, block_size = 20, n = 500, seed=5){
+gen.theta.from.data <- function(name_theta, theta_sparsity=0.7, block_size = 20, n = 500, seed=5){
   mydata <- read.table(paste0("data/real_Sigma/", name_theta, ".txt"), quote="\"", comment.char="")
   adjmat <- get.adjacency(graph = graph_from_edgelist(el = as.matrix(mydata[,1:2]), directed = F))
   adjmat[adjmat == 2] <- 1
@@ -252,7 +255,7 @@ gen.theta.from.data <- function(name_theta, block_size = 20, n = 500, seed=5){
   zeropos <- vector(mode = "list", length = num_blocks)
   set.seed(seed)
   
-  cursize = n
+  # cursize = n
   
   for(i in 1:num_blocks){
     # block_size = min(cursize, block_size)
@@ -261,9 +264,15 @@ gen.theta.from.data <- function(name_theta, block_size = 20, n = 500, seed=5){
     # theta <- as.matrix(adjmat[(1 + (i-1)*block_size): min(i*block_size, n), (1 + (i-1)*block_size): min(i*block_size,n)])
     theta <- as.matrix(adjmat[samp_ind, samp_ind])
     # blocks[[i]][blocks[[i]] == 1] <- 0.7
-    theta[theta == 1] <- runif(n = sum(theta),-5,5)
-    theta <- (theta+ t(theta)) / 2
-    theta = theta - (min(eigen(theta)$value)-.1) * diag(dim(theta)[1])
+    theta_tmp <- diag(block_size)
+    indices <- as.matrix(expand.grid(1:block_size, 1:block_size))
+    for(j in 1:nrow(indices)) theta_tmp[indices[j,1], indices[j,2]] <- theta_sparsity^(abs(diff(indices[j,]))/3)
+    theta_tmp[theta == 0] = 0
+    theta = (theta_tmp + t(theta_tmp))/2
+    # theta[theta == 1] <- runif(n = sum(theta),-5,5)
+    # theta <- (theta+ t(theta)) / 2
+    theta = theta - (min(eigen(theta)$value)-0.1) * diag(dim(theta)[1])
+    # image(as(theta, class(estimands$theta)))
     # sig <- cov2cor(solve(theta))
     # blocks[[i]] <- round(solve(sig),5)
     blocks[[i]] <- round(solve(theta), 3)
@@ -271,11 +280,24 @@ gen.theta.from.data <- function(name_theta, block_size = 20, n = 500, seed=5){
   }
   theta <- do.call(bdiag, blocks)
   theta <- theta[1:n, 1:n]
-  theta[abs(theta) < 1e-3] = 0
+  # theta[abs(theta) < 1e-4] = 0
   sig <- round(solve(theta),3)
-  
+  if(!is.positive.definite(as.matrix(sig))) 
+    stop("Sigma is not positive definite !!!")
   return(list(theta=theta, sig=sig, theta_type=name_theta, zeropos=zeropos))
 }
+
+
+gene_theta_from_data2 <- function(
+  
+){
+  mydata <- read.table(paste0("data/real_Sigma/", name_theta, ".txt"), quote="\"", comment.char="")
+  adjmat <- get.adjacency(graph = graph_from_edgelist(el = as.matrix(mydata[,1:2]), directed = F))
+  adjmat[adjmat == 2] <- 1
+  diag(adjmat) <- 1
+  N <- dim(adjmat)[1]
+}
+
 
 gen.theta <- function(struct = 'exp.decay',
                       n, 
