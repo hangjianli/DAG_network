@@ -54,7 +54,9 @@ generate_parameters <- function(
   seed = 10, 
   bname = NULL, 
   btype = NULL, 
-  theta_sparsity = 0.7,
+  sbm_probs = c(0.1,0.5),
+  sbm_nblocks = 5,
+  cluster_sizes,
   theta_name = NULL
 ){
   if(args$bchoice == "y") {
@@ -83,16 +85,23 @@ generate_parameters <- function(
       theta_name = readline(prompt = "Pick a dataset for theta: >> ")
     cat(paste0("Theta was generated from ", theta_name, " data set.\n"))
     theta.temp <- try({gen.theta.from.data(
-      name_theta = theta_name, 
+      name_theta = theta_name,
       theta_sparsity =theta_sparsity,
       block_size = args$block_size,
       n = args$n, seed = seed)})
+
   }else{
     cat("Theta was generated from simulation.\n")
-    theta.temp <- gen.theta(struct = args$theta_type, 
-                            n = args$n, 
+    theta.temp <- gen.theta(struct = args$theta_type,
+                            n = args$n,
                             block_size = args$block_size,
                             seed = seed*5)
+    # theta.temp <- try({generate_sbm_theta(
+    #   n = args$n,
+    #   nblocks = sbm_nblocks,
+    #   cluster_sizes = cluster_sizes,
+    #   probs = sbm_probs,
+    #   seed = seed)})
   }
   
   # Must generate b first to determine p !!
@@ -238,6 +247,53 @@ block.func <- function(x, eps){
   x <- round(solve(inv.x), 10)
   return(x)
 }
+
+
+generate_sbm_theta <- function(n, nblocks, cluster_sizes, probs=c(0.1, 0.3), seed=1){
+  cat("Generating theta from stochastic block model.. \n")
+  P =  matrix(probs[1],n,n)
+  # for(i in 1:nblocks){
+  #   P[(1 + (i-1) * (ceiling(n/nblocks))): min(i * (ceiling(n/nblocks)), n), 
+  #     (1 + (i-1) * (ceiling(n/nblocks))): min(i * (ceiling(n/nblocks)), n)] = probs[2]
+  # }
+  for(i in 1:length(cluster_sizes)){
+    if(i==1){
+      pre_sz = 0
+    }else{
+      pre_sz = pre_sz + cluster_sizes[i-1]
+    }
+    sz = cluster_sizes[i]
+    P[(1+pre_sz):(pre_sz + sz),(1+pre_sz):(pre_sz + sz)] = probs[2]
+  }
+  
+  diag(P) = 0
+  set.seed(seed)
+  A = matrix(rbinom(matrix(1,n,n),matrix(1,n,n),P),n,n)
+  A = ceiling((A + t(A)) / 2)
+  theta = diag(n)
+  theta[A == 1] <- runif(n = sum(A),-5,5)
+  
+  # indices <- as.matrix(expand.grid(1:n, 1:n))
+  # for(j in 1:nrow(indices)){
+  #   theta[indices[j,1], indices[j,2]] <- 0.7^(abs(diff(indices[j,]))/5)
+  # }
+  # theta[A != 0] = 0
+  theta = (theta + t(theta)) / 2
+  theta = theta - (min(eigen(theta)$value)-0.1) * diag(dim(theta)[1])
+  theta = as(theta, 'dgCMatrix')
+  image(theta)
+  
+  # image(as(theta, 'dgCMatrix'))
+  theta = round(theta, 5)  
+  zeropos <- vector(mode = "list")
+  zeropos[[1]] <- which(abs(as.matrix(theta)) < 1e-5, arr.ind = T)
+  sig <- round(solve(theta),5)
+  if(!is.positive.definite(as.matrix(sig))) stop("Sigma is not positive definite !!!")
+  
+  return(list(theta=theta, sig=sig, zeropos=zeropos))
+}
+
+
 
 gen.theta.from.data <- function(name_theta, theta_sparsity=0.7, block_size = 20, n = 500, seed=5){
   mydata <- read.table(paste0("data/real_Sigma/", name_theta, ".txt"), quote="\"", comment.char="")
