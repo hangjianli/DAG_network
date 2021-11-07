@@ -308,7 +308,7 @@ compute_SHD_dag <- function(adj1, adj_true, s0){
 
 
 compute_SHD_detail <- function(adj1, adj_true, s0){    
-  # also computed total number of estiamted edges (directed + undirected)
+  # also computed total number of estimated edges (directed + undirected)
   miss <- wrong_dir <- inv_miss <- ud <- du <- 0
   if(dim(adj1)[1] != dim(adj_true)[1]){
     stop("Dimension doesn't match!")

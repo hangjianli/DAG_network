@@ -175,10 +175,28 @@ all_bic
 
 
 fgesdag <- readRDS("adjmat_fges_CPDAG_decor.rds")
-fgesdag_original <- readRDS("adjmat_fges_CPDAG.rds")
 pcdag <- readRDS("adjmat_pc_CPDAG_decor.rds")
-pcdag_original <- readRDS("adjmat_pc_CPDAG.rds")
 sbndag <- readRDS("adjmat_sparsebn_CPDAG_decor.rds")
+
+fgesdag[,c('NANOG')][fgesdag[,c('NANOG')] == 1]
+fgesdag[,c('POU5F1')][fgesdag[,c('POU5F1')] == 1]
+fgesdag[,c('SOX2')][fgesdag[,c('SOX2')] == 1]
+
+fgesdag[c('NANOG'),][fgesdag[c('NANOG'), ] == 1]
+fgesdag[c('POU5F1'),][fgesdag[c('POU5F1'), ] == 1]
+fgesdag[c('SOX2'),][fgesdag[c('SOX2'), ] == 1]
+
+pcdag[,c('NANOG')][pcdag[,c('NANOG')] == 1]
+pcdag[,c('POU5F1')][pcdag[,c('POU5F1')] == 1]
+pcdag[,c('SOX2')][pcdag[,c('SOX2')] == 1]
+
+pcdag[c('NANOG'),][pcdag[c('NANOG'), ] == 1]
+pcdag[c('POU5F1'),][pcdag[c('POU5F1'), ] == 1]
+pcdag[c('SOX2'),][pcdag[c('SOX2'), ] == 1]
+
+
+fgesdag_original <- readRDS("adjmat_fges_CPDAG.rds")
+pcdag_original <- readRDS("adjmat_pc_CPDAG.rds")
 sbndag_original <- readRDS("adjmat_sparsebn_CPDAG.rds")
 
 plot_cpdag(fgesdag_original)
@@ -187,6 +205,15 @@ plot_cpdag(pcdag_original)
 plot_cpdag(pcdag, file = 'pc_cpdag')
 plot_cpdag(sbndag_original)
 plot_cpdag(sbndag, file = 'sbn_cpdag')
+
+sbndag[,c('NANOG')][sbndag[,c('NANOG')] == 1]
+sbndag[,c('POU5F1')][sbndag[,c('POU5F1')] == 1]
+sbndag[,c('SOX2')][sbndag[,c('SOX2')] == 1]
+
+sbndag[c('NANOG'),][sbndag[c('NANOG'), ] == 1]
+sbndag[c('POU5F1'),][sbndag[c('POU5F1'), ] == 1]
+sbndag[c('SOX2'),][sbndag[c('SOX2'), ] == 1]
+
 
 
 # chi-square test --------------------------------------------------------------------

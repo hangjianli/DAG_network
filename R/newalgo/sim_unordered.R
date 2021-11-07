@@ -72,8 +72,15 @@ shd_data <- get_shd_ji_diff(simIDarr)
 shd_data
 
 # library(xtable)
-# shd_average <- readRDS("~/Documents/research/dag_network/output/805/shd_average.rds")
-# xtable(t(shd_average), digits = c(0,1,1,1,3,3,1,1,5))
+simID = '8004'
+shd_average <- readRDS(paste0("~/Documents/research/dag_network/output/", simID, "/shd_average.rds"))
+estimands <- readRDS(paste0("~/Documents/research/dag_network/output/", simID, "/estimands.rds"))
+args <- readRDS(paste0("~/Documents/research/dag_network/output/", simID, "/args.rds"))
+
+
+xtable(t(shd_average), digits = c(0,1,1,1,3,3,1,1,5))
+
+
 
 nsim = 10
 mydata <- data.frame(
