@@ -1,3 +1,0 @@
-# Structural learning of Gaussian Directed Acyclic Graphs from Network Data
-
-The traditional directed acyclic graph (DAG) model assumes data are generated independently from the underlying joint distribution defined by the DAG. In many applications, however, individuals are linked via a network and thus the independence assumption does not hold. We propose a novel Gaussian DAG model for network data, where the dependence among individual data points (row covariance) is modeled by an undirected graph. Under this model, we develop a maximum penalized likelihood method to estimate the DAG structure and the row correlation matrix. The algorithm iterates between a decoupled lasso regression step and a graphical lasso step. 

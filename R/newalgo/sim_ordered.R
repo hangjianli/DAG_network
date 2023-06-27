@@ -104,3 +104,9 @@ shd_average <- readRDS(paste0("~/Documents/research/dag_network/output/", simID,
 xtable(t(shd_average), digits = c(0,1,1,1,3,3,1,3,3,1))
 shd_average
 
+
+
+
+
+
+
